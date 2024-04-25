@@ -6,8 +6,8 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [] Bolsa por Hectárea
 
 ## Semanales
-- [] Embolse (Grafico de Producción) (Grafico parcialmente implementado, a espera de procesamiento de datos)
-- [] Desflore (Grafico parcialmente implementado, a espera de procesamiento de datos)
+- [x] Embolse (Grafico de Producción)
+- [x] Desflore (Grafico de Producción)
 - [] Amarre (Grafico parcialmente implementado, a espera de procesamiento de datos)
 - [] Deshoje (Grafico parcialmente implementado, a espera de procesamiento de datos)
 ## Periodicas

@@ -11,12 +11,12 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [] Amarre (Grafico parcialmente implementado, a espera de procesamiento de datos)
 - [] Deshoje (Grafico parcialmente implementado, a espera de procesamiento de datos)
 ## Periodicas
-Control Maleza
-Desmache
-Resiembra
-Control Sigatoka
-Abono
-Abono Foliar
+- [] Control Maleza
+- [] Desmache
+- [] Resiembra
+- [] Control Sigatoka
+- [] Abono
+- [] Abono Foliar
 
 
 ## Nueva tarea

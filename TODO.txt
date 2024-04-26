@@ -1,6 +1,7 @@
 TODO: Implementar cálculos para los siguientes elementos:
 - [x] Caja por Hectárea (Finca)
 - [x] Bacota por Hectárea (Finca)
+- [] Bacota en Lote por Hectárea
 - [] Peso por Racimo
 - [] Ratio de Producción
 - [] Bolsa por Hectárea
@@ -8,12 +9,13 @@ TODO: Implementar cálculos para los siguientes elementos:
 ## Semanales
 - [x] Embolse (Grafico de Producción)
 - [x] Desflore (Grafico de Producción)
-- [] Amarre (Grafico parcialmente implementado, a espera de procesamiento de datos)
-- [] Deshoje (Grafico parcialmente implementado, a espera de procesamiento de datos)
+- [] Amarre (Grafico parcialmente implementado, a espera de datos de Sioma)
+- [] Deshoje (Grafico parcialmente implementado, a espera de datos de Sioma)
 ## Periodicas
-- [] Control Maleza
-- [] Desmache
+- [x] Control Maleza
+- [x] Desmache
 - [] Resiembra
+- [] Fertilización
 - [] Control Sigatoka
 - [] Abono
 - [] Abono Foliar

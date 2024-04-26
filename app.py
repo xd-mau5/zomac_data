@@ -1,5 +1,3 @@
-import random
-import string
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -20,14 +18,15 @@ st.set_page_config(
 )
 colores_embolse = pd.read_csv('data/colores_semana_embolse.csv')
 colores_desflore = pd.read_csv('data/colores_semana_desflore.csv')
+lotes_finca = pd.read_csv('data/lotes.csv')
 
 # Diccionarios con informacion de fincas y lotes
 fincas = {
     'San Pedro': ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09'],
-    'Uveros' : ['U06', 'U07'],
-    'Damaquiel': ['D08', 'D09', 'D10', 'D11'],
-    'Pedrito': ['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09', 'P10', 'P11', 'P12', 'P13', 'PN20', 'P15'],
-    'Montañita': ['M01', 'M02', 'M03', 'M04', 'M05']
+    'Uveros' : ['U06', 'U07', 'E21'],
+    'Damaquiel': ['D08', 'D09', 'D10', 'D11', 'D20'],
+    'Pedrito': ['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09', 'P10', 'P11', 'P12', 'P13', 'P14', 'PN20', 'P15', 'P20'],
+    'Montañita': ['M01', 'M02', 'M03', 'M04', 'M05', 'M07']
     }
 
 #st.write("# Analisis de datos de Tropical Food Export SAS")
@@ -74,6 +73,7 @@ def procesamiento_datos_embarque():
     df_agrupado = df.groupby(['Finca', 'Año', 'Semana']).sum(numeric_only=True).reset_index()
     return df_agrupado
 
+@st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_embolse():
     df = pd.read_excel(r'c:\Users\alext\Downloads\embolse.xlsx')
     # Agregamos la columna de Año y Semana
@@ -93,6 +93,7 @@ def procesamiento_datos_sioma_embolse():
     df['Codigo Color'] = df['Color'].map(dict(zip(color['Color'], color['Codigo Color'])))
     return df
 
+@st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_desflore():
     df = pd.read_excel(r'c:\Users\alext\Downloads\desflore.xlsx')
     # Agregamos la columna de Año y Semana
@@ -111,6 +112,96 @@ def procesamiento_datos_sioma_desflore():
     color = pd.read_csv('data/colores_semana_desflore.csv')
     df['Codigo Color'] = df['Color'].map(dict(zip(color['Color'], color['Codigo Color'])))
     return df
+
+@st.cache_data(ttl='12h')
+def procesamiento_datos_sioma_resiembra():
+    df = pd.read_excel(r'c:\Users\alext\Downloads\resiembra.xlsx')
+    # Agregamos la columna de Año y Semana
+    df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S')
+    df['Año'] = df['Fecha'].dt.year
+    df['Semana'] = df['Fecha'].dt.isocalendar().week
+    df['Finca'] = ''
+    # Usando la informacion del diccionario fincas, si un lote dentro del dataframe esta en uno de los values de finca, colocar la key en la columna finca
+    for index, row in df.iterrows():
+        for key, value in fincas.items():
+            if row['Lote'] in value:
+                df.at[index, 'Finca'] = key
+    df = df.dropna(subset=['Lote'])
+    df = df[df['Finca'] != '']
+    return df
+
+@st.cache_data(ttl='12h')
+def procesamiento_datos_rdt():
+    df = pd.read_excel(r'c:\Users\alext\Dropbox\TROPICAL  2022 oficina\Nomina Dopbox\RDT 2023\RDT  26  de Abril de 2024  (1).xlsx', sheet_name='RDT')
+    # Eliminamos las primeras 13 filas y la primera columna
+    df = df.iloc[13:, 1:]
+    # Colocamos la primera fila como titulos de las columnas
+    df.columns = df.iloc[0]
+    df = df.iloc[1:]
+    # Eliminamos las ultimas 4 columnas
+    df = df.iloc[:, :-4]
+    # Vamos a especificar las columnas que queremos conservar
+    columnas_a_conservar = [
+        'Fecha',
+        'Año',
+        'Semana',
+        'Nombre Labor',
+        ' Unides Primer Lote',
+        'Codgo generico L1',
+        'Unides Segundo Lote',
+        'Codgo generico L 2',
+        'Unides Tercer Lote',
+        'Codgo generico L3',
+        'Unides Cuarto Lote',
+        'Codgo generico L4',
+        'Labores'
+        ]
+    # Eliminamos las columnas que no estan en 'columnas_a_conservar'
+    df = df[columnas_a_conservar]
+    # Cambiamos el nombre de las columnas
+    df.columns = [
+        'Fecha',
+        'Año',
+        'Semana',
+        'Nombre Labor',
+        'Unidades Primer Lote',
+        'Codigo Generico L1',
+        'Unidades Segundo Lote',
+        'Codigo Generico L2',
+        'Unidades Tercer Lote',
+        'Codigo Generico L3',
+        'Unidades Cuarto Lote',
+        'Codigo Generico L4',
+        'Labores'
+    ]
+    # Eliminamos las filas donde 'Labores' sea igual a 0 y 'Nombre Labor' sea igual a 'No Trabajó', solamente si se cumplen estas dos condiciones
+    df = df.drop(df[(df['Labores'] == 0) & (df['Nombre Labor'] == 'No Trabajó')].index)
+    # Eliminamos las filas que tengan los valores de 'Nombre Labor' en 0 y 'Labores' en 0
+    df = df.drop(df[(df['Nombre Labor'] == 0) & (df['Labores'] == 0)].index).reset_index(drop=True)
+    # Vamos a cambiar el formato de la fecha a 'DD/MM/YYYY'
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df['Fecha'] = df['Fecha'].dt.strftime('%d/%m/%Y')
+    # Eliminamos las filas donde 'Labores' sea igual a 0
+    df = df.drop(df[df['Labores'] == 0].index).reset_index(drop=True)
+    # Asginamos tipo de valor a las columnas
+    #df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df['Año'] = df['Año'].astype(int)
+    df['Semana'] = df['Semana'].astype(int)
+    df['Nombre Labor'] = df['Nombre Labor'].astype(str)
+    df['Labores'] = df['Labores'].astype(str)
+    # Las unidades en tipo float con dos decimales
+    df['Unidades Primer Lote'] = df['Unidades Primer Lote'].astype(float)
+    df['Unidades Segundo Lote'] = df['Unidades Segundo Lote'].astype(float)
+    df['Unidades Tercer Lote'] = df['Unidades Tercer Lote'].astype(float)
+    df['Unidades Cuarto Lote'] = df['Unidades Cuarto Lote'].astype(float)
+    # Los codigos en tipo string
+    df['Codigo Generico L1'] = df['Codigo Generico L1'].astype(str)
+    df['Codigo Generico L2'] = df['Codigo Generico L2'].astype(str)
+    df['Codigo Generico L3'] = df['Codigo Generico L3'].astype(str)
+    df['Codigo Generico L4'] = df['Codigo Generico L4'].astype(str)
+    # Colocamos los valores de 'Labores' en formato titulo
+    df['Labores'] = df['Labores'].str.title()
+    return df
     
 def run():
     st.sidebar.title("Menu")
@@ -127,17 +218,16 @@ def run():
                     ''')
     elif pagina == 'Graficos de Produccion':
         caja_por_hectarea, bacota_por_hectarea = st.tabs(["Caja por hectarea", "Bacota por hectarea"])
-        #st.write("Caja por Hectarea")
         with caja_por_hectarea.container():
             data = procesamiento_datos_embarque()
             st.subheader("Filtros para las graficas")
-            fincas = data['Finca'].unique()
-            year = data['Año'].unique()
+            finca_caja = data['Finca'].unique()
+            year_caja = data['Año'].unique()
             finca, anio = st.columns(2)
             with finca:
-                finca_seleccionada_cxh = st.radio("Seleccionar finca", fincas)
+                finca_seleccionada_cxh = st.radio("Seleccionar finca", finca_caja)
             with anio:
-                anio_seleccionado_cxh = st.radio("Filtrar por año", year, index=year.size-1)
+                anio_seleccionado_cxh = st.radio("Filtrar por año", year_caja, index=year_caja.size-1)
             # Filtrar por año
             data = data[data['Año'] == anio_seleccionado_cxh]
             # Filtrar por finca
@@ -150,29 +240,26 @@ def run():
         with bacota_por_hectarea.container():
             data = procesamiento_datos_sioma_embolse()
             st.subheader("Filtros para las graficas")
-            fincas = data['Finca'].unique()
-            year = data['Año'].unique()
+            finca_bacota = data['Finca'].unique()
+            year_bacota = data['Año'].unique()
             finca, anio = st.columns(2)
             total_hectareas = pd.read_csv('data/total_hectareas_por_finca.csv')
             with finca:
-                finca_seleccionada_bxh = st.radio("Seleccionar finca", fincas, key='sdasfadg')
+                finca_seleccionada_bxh = st.radio("Seleccionar finca", finca_bacota, key='sdasfadg')
             with anio:
-                anio_seleccionado_bxh = st.radio("Filtrar por año", year, index=year.size-1, key='asdasd')
-            # Sumar la cantidad de bolsas, dependiendo de la finca
+                anio_seleccionado_bxh = st.radio("Filtrar por año", year_bacota, index=year_bacota.size-1, key='asdasd')
             # Filtrar por año
             temp = data[data['Año'] == anio_seleccionado_bxh]
             temp = data.groupby(by='Semana')['Finca'].value_counts().unstack().fillna(0)
             temp = temp.reset_index()
             temp = temp.melt(id_vars='Semana', var_name='Finca', value_name='Cantidad')
             temp = temp[temp['Cantidad'] != 0]
-            print(temp)
             for index, row in temp.iterrows():
                 for index2, row2 in total_hectareas.iterrows():
                     if row['Finca'] == row2['Finca']:
                         temp.at[index, 'Bacotas por Hectarea'] = row['Cantidad'] / row2['Tamaño Area Neta']
             # Filtrar por finca
             temp = temp[temp['Finca'] == finca_seleccionada_bxh]
-            #temp = temp.groupby(by='Semana')['Cantidad'].sum().reset_index()
             fig = px.bar(temp, x="Semana", y='Bacotas por Hectarea',
                           title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})
@@ -181,12 +268,13 @@ def run():
     elif pagina == 'Graficos Semanales':
         embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])
         with embolse:
+            st.subheader("Filtros para las graficas")
             data_embolse = procesamiento_datos_sioma_embolse()
             finca, lote, anio = st.columns(3)
             with finca:
-                finca_seleccionada_embolse = st.radio("Seleccionar finca", data_embolse['Finca'].unique())
+                finca_seleccionada_embolse = st.selectbox("Seleccionar finca", data_embolse['Finca'].unique())
             with lote:
-                lote_seleccionado_embolse = st.radio("Seleccionar lote", data_embolse[(data_embolse['Finca'] == finca_seleccionada_embolse)]['Lote'].sort_values().unique())
+                lote_seleccionado_embolse = st.selectbox("Seleccionar lote", data_embolse[(data_embolse['Finca'] == finca_seleccionada_embolse)]['Lote'].sort_values().unique())
             with anio:
                 anio_seleccionado_embolse = st.radio("Filtrar por año", data_embolse['Año'].unique())
             data_embolse = data_embolse[(data_embolse['Finca'] == finca_seleccionada_embolse) & (data_embolse['Lote'] == lote_seleccionado_embolse) & (data_embolse['Año'] == anio_seleccionado_embolse)]
@@ -197,17 +285,21 @@ def run():
             fig = go.Figure(data=[go.Bar(
                 x=temp['Semana'],
                 y=temp['Cantidad'],
-                marker=dict(color=data_embolse[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values))],
+                marker=dict(color=data_embolse[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values),
+                hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br>Color: %{marker.color}<extra></extra>'
+                )],
             )
+            fig.update_layout(title='Embolse', xaxis_title='Semana', yaxis_title='Cantidad')
             st.plotly_chart(fig, use_container_width=True)
 
         with desflore:
             data_desflore = procesamiento_datos_sioma_desflore()
+            st.subheader("Filtros para las graficas")
             finca, lote, anio = st.columns(3)
             with finca:
                 finca_seleccionada_desflore = st.radio("Seleccionar finca", data_desflore['Finca'].unique(), key='1714060469')
             with lote:
-                lote_seleccionado_desflore = st.radio("Seleccionar lote", data_desflore[(data_desflore['Finca'] == finca_seleccionada_desflore)]['Lote'].sort_values().unique(), key='1714060486')
+                lote_seleccionado_desflore = st.selectbox("Seleccionar lote", data_desflore[(data_desflore['Finca'] == finca_seleccionada_desflore)]['Lote'].sort_values().unique(), key='1714060486')
             with anio:
                 anio_seleccionado_desflore = st.radio("Filtrar por año", data_desflore['Año'].unique(), key='1714060512')
             data_embolse = data_embolse[(data_embolse['Finca'] == finca_seleccionada_desflore) & (data_desflore['Lote'] == lote_seleccionado_desflore) & (data_desflore['Año'] == anio_seleccionado_desflore)]
@@ -215,13 +307,12 @@ def run():
             temp = temp.reset_index()
             temp = temp.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
             temp = temp[temp['Cantidad'] != 0]
-            print(procesamiento_datos_sioma_desflore())
-            print(temp)
-            st.dataframe(temp, hide_index=True)
             fig = go.Figure(data=[go.Bar(
                 x=temp['Semana'],
                 y=temp['Cantidad'],
-                marker=dict(color=data_desflore[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values))],
+                marker=dict(color=data_desflore[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values),
+                hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br>Color: %{marker.color}<extra></extra>'
+                )]
             )
             st.plotly_chart(fig, use_container_width=True)
         with amarre:
@@ -229,6 +320,155 @@ def run():
             st.subheader("Por implementar")
         with deshoje:
             st.write("Deshoje")
+            st.subheader("Por implementar")
+    elif pagina == 'Tareas Periodicas':
+        st.write("Tareas Periodicas")
+        control_maleza, desmache, resiembra, fertilizacion, control_sigatoka, abono, abono_foliar = st.tabs([
+                "Control de maleza",
+                "Desmache",
+                "Resiembra", 
+                "Fertilizacion",
+                "Control de sigatoka",
+                "Abono",
+                "Abono foliar"
+                ])
+        with control_maleza:
+            st.write("Filtros para las graficas")
+            data = procesamiento_datos_rdt()
+            #labores = data['Labores'].unique().tolist()
+            # Mostrar solo las labores que contengan la palabra 'maleza'
+            labores = 'Fumigacion  Control Maleza '
+            #labores = [labor for labor in labores if 'maleza' in labor.lower()]
+            #test = st.multiselect("Seleccionar limpieza labor", labores, key='17141396121')
+            # usar los valores de test para filtrar el dataframe
+            data = data[data['Labores'] == labores].reset_index(drop=True)
+            columna_finca, columna_lote, columna_anio = st.columns(3)
+            with columna_anio:
+                anio = st.radio("Filtrar por año", data['Año'].unique(), key='1714139611', index=data['Año'].unique().size-1)
+            data = data[data['Año'] == anio]
+            with columna_finca:
+                finca_seleccionada_maleza = st.selectbox("Seleccionar finca", fincas.keys(), key='1714139612')
+            with columna_lote:
+                lotes_maleza = st.selectbox("Seleccionar el lote", fincas.get(finca_seleccionada_maleza),key='1714153623')
+            data = data[data['Codigo Generico L1'] == lotes_maleza].reset_index(drop=True)
+            # Agrupar por Semana, Codigo Generico L1 y Labores, hacer la sumatoria de 'Unidades Primer Lote'
+            temp = data.groupby(['Año', 'Semana', 'Codigo Generico L1', 'Labores']).sum(numeric_only=True).reset_index()
+            for index, row in temp.iterrows():
+                for index2, row2 in lotes_finca.iterrows():
+                    if row['Codigo Generico L1'] == row2['Lote  Generico']:
+                        temp.at[index, 'Porcentaje'] = (row['Unidades Primer Lote'] / row2['Tamaño Area Neta']) * 100
+            temp.reset_index(drop=True, inplace=True)
+            try:
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de maleza', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100])
+                fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
+                st.plotly_chart(fig, use_container_width=True)
+            except ValueError:
+                st.warning("No hay datos en el lote seleccionado", icon='⚠️')
+
+        with desmache:
+            st.write("Filtro para las graficas")
+            data_desmache = procesamiento_datos_rdt()
+            labores = 'Desmache'
+            data_desmache = data_desmache[data_desmache['Labores'] == labores].reset_index(drop=True)
+            columna_finca, columna_lote, columna_anio = st.columns(3)
+            with columna_anio:
+                anio = st.radio("Filtrar por año", data_desmache['Año'].unique(), key='1714139618', index=data_desmache['Año'].unique().size-1)
+            data_desmache = data_desmache[data_desmache['Año'] == anio]
+            with columna_finca:
+                finca_seleccionada_desmache = st.selectbox("Seleccionar finca", fincas.keys(), key='1714139617')
+            with columna_lote:
+                lotes_desmache = st.selectbox("Seleccionar el lote", fincas.get(finca_seleccionada_desmache),key='1714153626')
+            data_desmache = data_desmache[data_desmache['Codigo Generico L1'] == lotes_desmache].reset_index(drop=True)
+            # Agrupar por Semana, Codigo Generico L1 y Labores, hacer la sumatoria de 'Unidades Primer Lote'
+            temp = data_desmache.groupby(['Año', 'Semana', 'Codigo Generico L1', 'Labores']).sum(numeric_only=True).reset_index()
+            for index, row in temp.iterrows():
+                for index2, row2 in lotes_finca.iterrows():
+                    if row['Codigo Generico L1'] == row2['Lote  Generico']:
+                        temp.at[index, 'Porcentaje'] = (row['Unidades Primer Lote'] / row2['Tamaño Area Neta']) * 100
+            temp.reset_index(drop=True, inplace=True)
+            try:
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Desmache', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100])
+                fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
+                st.plotly_chart(fig, use_container_width=True)
+            except ValueError:
+                st.warning("No hay datos en el lote seleccionado", icon='⚠️')
+
+        with resiembra:
+            st.write("Filtros para las graficas")
+            data_resiembra = procesamiento_datos_sioma_resiembra()
+            finca, lote, anio = st.columns(3)
+            with finca:
+                finca_seleccionada_resiembra = st.selectbox("Seleccionar finca", data_resiembra['Finca'].unique(), key='17141394611')
+            with lote:
+                lote_seleccionado_resiembra = st.selectbox("Seleccionar lote", data_resiembra[(data_resiembra['Finca'] == finca_seleccionada_resiembra)]['Lote'].sort_values().unique(), key='17174153623')
+            with anio:
+                anio_seleccionado_resiembra = st.radio("Filtrar por año", data_resiembra['Año'].unique(), key='1714153362301')
+            data_resiembra = data_resiembra[(data_resiembra['Finca'] == finca_seleccionada_resiembra) & (data_resiembra['Lote'] == lote_seleccionado_resiembra) & (data_resiembra['Año'] == anio_seleccionado_resiembra)]
+            temp = data_resiembra.groupby(by='Semana')['Lote'].value_counts().unstack().fillna(0)
+            temp = temp.reset_index()
+            temp = temp.melt(id_vars='Semana', var_name='Lote', value_name='Cantidad')
+            temp = temp[temp['Cantidad'] != 0]
+            if temp.empty:
+                st.warning("No hay datos en el lote seleccionado", icon='⚠️')
+            else:
+                try:
+                    fig = go.Figure(data=[go.Bar(
+                        x=temp['Semana'],
+                        y=temp['Cantidad'],
+                        hovertemplate='Semana: %{x}<br>Unidades: %{y}<extra></extra>',
+                    )])
+                    # rango de y
+                    fig.update_yaxes(range=[0, temp['Cantidad'].max() + 10])
+                    fig.update_layout(xaxis_title='Semana', yaxis_title='Unidades')
+                    # Colocar la figura en el medio
+                    st.plotly_chart(fig, use_container_width=True)
+                except ValueError:
+                    st.warning("No hay datos en el lote seleccionado", icon='⚠️')
+
+        with fertilizacion:
+            st.write("Fertilizacion")
+            st.subheader("Por implementar")
+
+        with control_sigatoka:
+            st.write("Filros para las graficas")
+            data = procesamiento_datos_rdt()
+            labores = 'Control'
+            nombre_labor = ['Control foliar', 'Control foliar con Nitrato de potasio y menores']
+            data = data[data['Nombre Labor'].isin(nombre_labor)].reset_index(drop=True)
+            columna_finca, columna_lote, columna_anio = st.columns(3)
+            with columna_anio:
+                anio = st.radio("Filtrar por año", data['Año'].unique(), key='17141396121')
+            data = data[data['Año'] == anio]
+            with columna_finca:
+                finca_seleccionada_sigatoka = st.selectbox("Seleccionar finca", fincas.keys(), key='171413961214')
+            with columna_lote:
+                lotes_sigatoka = st.selectbox("Seleccionar el lote", fincas.get(finca_seleccionada_sigatoka),key='171415362301')
+            data = data[data['Codigo Generico L1'] == lotes_sigatoka].reset_index(drop=True)
+            #Agrupar por Semana, Codigo Generico L1 y Labores, hacer la sumatoria de 'Unidades Primer Lote'
+            #Debido a que esta labor se puede realizar en distintos lotes al mismo tiempo puede que tengamos valores iguales en 'Codigo Generico L1' y 'Codigo Generico L2'
+            #Por lo tanto, se debe sumar las unidades de los lotes iguales
+            #Pero puede que tambien se realice en la misma semana la misma labor pero con diferente nombre, por lo tanto, se debe sumar las unidades de las labores iguales 
+            temp1 = data.groupby(['Año', 'Semana', 'Codigo Generico L1', 'Labores']).sum(numeric_only=True).reset_index()
+            temp = pd.melt(temp1, id_vars=['Año', 'Semana', 'Codigo Generico L1', 'Labores'], value_vars=['Unidades Primer Lote'], var_name='Unidades')
+            for index, row in temp.iterrows():
+                for index2, row2 in lotes_finca.iterrows():
+                    if row['Codigo Generico L1'] == row2['Lote  Generico']:
+                        temp.at[index, 'Porcentaje'] = (row['value'] / row2['Tamaño Area Neta']) * 100
+            temp = temp.groupby(['Año', 'Semana', 'Labores']).sum(numeric_only=True).reset_index()
+            temp.reset_index(drop=True, inplace=True)
+            try:
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de sigatoka', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100])
+                fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
+                st.plotly_chart(fig, use_container_width=False)
+            except ValueError:
+                st.warning("No hay datos en el lote seleccionado", icon='⚠️')
+
+        with abono:
+            st.write("Abono")
+            st.subheader("Por implementar")
+
+        with abono_foliar:
+            st.write("Abono foliar")
             st.subheader("Por implementar")
 
 

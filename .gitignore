@@ -173,3 +173,5 @@ cython_debug/
 *.xlsx
 *.xlsb
 *.xls
+
+test.py

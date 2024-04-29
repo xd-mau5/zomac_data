@@ -161,4 +161,15 @@ cython_debug/
 
 # VSCode
 .vscode/
+
+# Excel
+~$*
+*.xlk
+*.xll
+*.xlb
+*.xlam
+*.xla
+*.xlw
 *.xlsx
+*.xlsb
+*.xls

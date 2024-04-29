@@ -1,3 +1,4 @@
+dropbox==11.36.2
 pandas==2.2.2
 plotly==5.21.0
 streamlit==1.33.0

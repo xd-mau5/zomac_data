@@ -25,11 +25,22 @@ venv\Scripts\activate.ps1
 ```bash
 pip install -r requirements.txt
 ```
-5. Descargar los datos faltantes de la carpeta de Dropbox
+5. Crear un archivo .env en la raíz del proyecto con las siguientes variables de entorno abriendo el [panel de control de Dropbox](https://www.dropbox.com/developers/apps) y creando una nueva aplicación
+
+```bash
+DROPBOX_KEY=your_dropbox_key
+DROPBOX_SECRET=your_dropbox_secret
+DROPBOX_TOKEN=your_dropbox_token
+```
+6. Se deben marcar los siguientes permisos en la aplicación de Dropbox
+
+✅ **files.content.read**
+
+7. Descargar los datos faltantes de la carpeta de Dropbox
 ```bash
 python download_data.py
 ```
-6. Correr el servidor
+8. Correr el servidor
 ```bash
 streamlit run app.py
 ```

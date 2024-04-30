@@ -36,7 +36,7 @@ paginas = ['Inicio', 'Graficos de Produccion', 'Graficos Semanales', 'Tareas Per
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque():
-    excel = r'c:\Users\alext\Dropbox\TROPICAL  2022 oficina\Embarque Dropbox\LIQUIDADOR DE EMBARQUE.xlsx'
+    excel = r'data/Dropbox/LIQUIDADOR DE EMBARQUE.xlsx'
     sheet = 'CALCULO PAGO'
     df = pd.read_excel(excel, sheet_name=sheet)
     df = df.iloc[6:, 2:]
@@ -132,7 +132,7 @@ def procesamiento_datos_sioma_resiembra():
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_rdt():
-    df = pd.read_excel(r'c:\Users\alext\Dropbox\TROPICAL  2022 oficina\Nomina Dopbox\RDT 2023\RDT  26  de Abril de 2024  (1).xlsx', sheet_name='RDT')
+    df = pd.read_excel(r'data/Dropbox/RDT  26  de Abril de 2024  (1) (version 1).xlsb.xlsx', sheet_name='RDT')
     # Eliminamos las primeras 13 filas y la primera columna
     df = df.iloc[13:, 1:]
     # Colocamos la primera fila como titulos de las columnas

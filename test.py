@@ -47,6 +47,13 @@ def search_excel_rdt(dbx: dropbox.Dropbox, folder: str, remote_folder: str):
             if entry.name.endswith(".xlsx") and entry.name.startswith("RDT"):
                 print(f"Archivo {entry.name} descargado con éxito")
 
+def search_excel_embarque(dbx: dropbox.Dropbox, folder: str, remote_folder: str):
+    for entry in dbx.files_list_folder(remote_folder).entries:
+        if entry.name.endswith(".xlsx") and "EMBARQUE" in entry.name:
+            print(f"Archivo {entry.name} encontrado")
+            files_download(dbx, folder, entry.name, remote_folder)
+            if entry.name.endswith(".xlsx") and "EMBARQUE" in entry.name:
+                print(f"Archivo {entry.name} descargado con éxito")
 
 def check_token(TOKEN: str):
     print("Verificando token...")
@@ -72,3 +79,4 @@ if not os.path.exists(folder):
 if __name__ == "__main__":
     check_token(TOKEN)
     search_excel_rdt(dbx, folder, "/TROPICAL  2022/Nomina Dopbox/RDT 2023")
+    search_excel_embarque(dbx, folder, "/TROPICAL  2022/Embarque Dropbox")

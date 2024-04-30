@@ -13,7 +13,7 @@ KEY = env_vars["DROPBOX_KEY"]
 SECRET = env_vars["DROPBOX_SECRET"]
 folder = r"data/Dropbox"
 TOKEN = env_vars["DROPBOX_TOKEN"]
-dbx = dropbox.Dropbox(TOKEN)
+
 
 
 def dropbox_oauth():
@@ -32,6 +32,12 @@ def dropbox_oauth():
 
     return oauth_result.access_token
 
+if TOKEN == "":
+    print("No se ha encontrado un token de Dropbox")
+    TOKEN = dropbox_oauth()
+    TOKEN = TOKEN.replace("'", "")
+    set_key
+dbx = dropbox.Dropbox(TOKEN)
 
 def files_download(dbx: dropbox.Dropbox, folder: str, file: str, remote_folder: str):
     with open(os.path.join(folder, file), "wb") as f:

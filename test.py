@@ -1,18 +1,22 @@
 import dropbox
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values, set_key
 import dropbox.files
 import dropbox.oauth
 
-load_dotenv()
+env_vars = dotenv_values('.env')
+print('Varaibles de entorno actuales:')
+for key, value in env_vars.items():
+    print(f'{key}={value}')
 
-KEY = os.getenv('DROPBOX_KEY')
-SECRET = os.getenv('DROPBOX_SECRET')
+KEY = env_vars['DROPBOX_KEY']
+SECRET = env_vars['DROPBOX_SECRET']
 folder = (r'data/Dropbox')
-
+TOKEN = env_vars['DROPBOX_TOKEN']
+dbx = dropbox.Dropbox(TOKEN)
 
 def dropbox_oauth():
-    flow = dropbox.DropboxOAuth2FlowNoRedirect(KEY, SECRET)
+    flow = dropbox.DropboxOAuth2FlowNoRedirect(KEY, SECRET, token_access_type='legacy')
     authorize_url = flow.start()
     print("1. Ir a: " + authorize_url)
     print("2. Click 'Permitir' (iniciar sesión primero).")
@@ -40,20 +44,27 @@ def search_excel_rdt(dbx: dropbox.Dropbox, folder: str, remote_folder: str):
                 print(f'Archivo {entry.name} descargado con éxito')
 
 # Verificar si el token todavia es valido, si no, solicitar uno nuevo
-if os.getenv('DROPBOX_TOKEN'):
-    try:
-        dbx = dropbox.Dropbox(os.getenv('DROPBOX_TOKEN'))
-        dbx.users_get_current_account()
-    except dropbox.exceptions.AuthError:
-        os.putenv('DROPBOX_TOKEN', dropbox_oauth())
-else:
-    os.putenv('DROPBOX_TOKEN', dropbox_oauth())
+def check_token(TOKEN: str):
+    print('Verificando token...')
+    dbx = dropbox.Dropbox(TOKEN)
+    print('Token recibido en la variable dbx', TOKEN)
+    while True:
+        try:
+            print('Accediendo a la cuenta de Dropbox...')
+            dbx.users_get_current_account()
+            break
+        except dropbox.exceptions.AuthError as e:
+            print('Token invalido')
+            TOKEN = dropbox_oauth()
+            # Eliminamos las comillas simples del token
+            TOKEN = TOKEN.replace("'", "")
+            set_key('.env', 'DROPBOX_TOKEN', TOKEN)
+            dbx = dropbox.Dropbox(TOKEN)
+            print('Token actualizado')
 
 if not os.path.exists(folder):
     os.makedirs(folder)
-TOKEN = os.getenv('DROPBOX_TOKEN')
-dbx = dropbox.Dropbox(TOKEN)
-
 
 if __name__ == '__main__':
+    check_token(TOKEN)
     search_excel_rdt(dbx, folder, '/test')

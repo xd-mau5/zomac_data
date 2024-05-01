@@ -2,6 +2,16 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+import dropbox
+import dropbox.files
+import dropbox.oauth
+from dotenv import dotenv_values, set_key
+
+env_vars = dotenv_values(".env")
+KEY = env_vars["DROPBOX_KEY"]
+SECRET = env_vars["DROPBOX_SECRET"]
+folder_data_dropbox = r"data/Dropbox"
 
 st.set_page_config(
     page_title="Analisis de datos de Tropical Food Export SAS",
@@ -32,7 +42,62 @@ fincas = {
 #st.write("# Analisis de datos de Tropical Food Export SAS")
 st.title("Analisis de datos de Tropical Food Export SAS")
 
-paginas = ['Inicio', 'Graficos de Produccion', 'Graficos Semanales', 'Tareas Periodicas']
+paginas = ['Autenticacion en Dropbox',
+           'Graficos de Produccion',
+           'Graficos Semanales',
+           'Tareas Periodicas']
+
+def dropbox_oauth():
+    flow = dropbox.DropboxOAuth2FlowNoRedirect(KEY, SECRET, token_access_type="legacy")
+    authorize_url = flow.start()
+    st.write("Ir a la siguiente URL para autorizar la aplicación:")
+    st.link_button("Ir a la página de autorización", authorize_url)
+
+    auth_code = st.text_input("Ingrese el código de autorización aquí: ").strip()
+
+    try:
+        oauth_result = flow.finish(auth_code)
+    except Exception as e:
+        print("Error: %s" % (e,))
+        return
+
+    return oauth_result.access_token
+
+def files_download(dbx: dropbox.Dropbox, folder: str, file: str, remote_folder: str):
+    with open(os.path.join(folder, file), "wb") as f:
+        metadata, res = dbx.files_download(remote_folder + "/" + file)
+        f.write(res.content)
+
+def search_excel_rdt(dbx: dropbox.Dropbox, folder: str, remote_folder: str):
+    for entry in dbx.files_list_folder(remote_folder).entries:
+        if entry.name.endswith(".xlsx") and entry.name.startswith("RDT"):
+            files_download(dbx, folder, entry.name, remote_folder)
+            if entry.name.endswith(".xlsx") and entry.name.startswith("RDT"):
+                return entry.name
+
+def search_excel_embarque(dbx: dropbox.Dropbox, folder: str, remote_folder: str):
+    for entry in dbx.files_list_folder(remote_folder).entries:
+        if entry.name.endswith(".xlsx") and "EMBARQUE" in entry.name:
+            files_download(dbx, folder, entry.name, remote_folder)
+            if entry.name.endswith(".xlsx") and "EMBARQUE" in entry.name:
+                return entry.name
+            
+def check_token(TOKEN: str):
+    print("Verificando token...")
+    dbx = dropbox.Dropbox(TOKEN)
+    print("Token recibido en la variable dbx", TOKEN)
+    while True:
+        try:
+            print("Accediendo a la cuenta de Dropbox...")
+            dbx.users_get_current_account()
+            break
+        except dropbox.exceptions.AuthError as e:
+            print("Token invalido")
+            TOKEN = dropbox_oauth()
+            TOKEN = TOKEN.replace("'", "")
+            set_key(".env", "DROPBOX_TOKEN", TOKEN)
+            dbx = dropbox.Dropbox(TOKEN)
+            print("Token actualizado")
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque():
@@ -207,15 +272,34 @@ def run():
     st.sidebar.title("Menu")
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
-    if pagina == 'Inicio':
-        st.markdown('''
-                    Bienvenido a la aplicación de análisis de datos de Tropical Food Export SAS.
-                    En la parte izquierda se encuentra el menú de opciones, donde se puede seleccionar la opción deseada.
-                    Estan disponibles las siguientes opciones:
-                    - Gráficos de producción
-                    - Graficos semanales (Embolse, Desflore, Amarre, Deshoje)
-                    - Graficos de tareas periodicas
-                    ''')
+    if pagina == 'Autenticacion en Dropbox':
+        TOKEN = env_vars["DROPBOX_TOKEN"]
+        st.write("Autenticacion en Dropbox")
+        try:
+            if TOKEN == "":
+                st.write("Por favor autentiquese en Dropbox para poder descargar los archivos necesarios")
+                st.toast("No se ha autenticado en Dropbox", icon='⚠️')
+                TOKEN = dropbox_oauth()
+                set_key(".env", "DROPBOX_TOKEN", TOKEN)
+                if check_token(TOKEN):
+                    st.success("Autenticado en Dropbox")
+                    dbx = dropbox.Dropbox(TOKEN)
+                    st.toast("Descargando archivos necesarios", icon='⏳')
+                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                    st.success("Archivos descargados con éxito")
+            else:
+                st.success("Ya se ha autenticado en Dropbox")
+                dbx = dropbox.Dropbox(TOKEN)
+                with st.spinner("Descargando archivos necesarios"):
+                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                st.success("Archivos descargados con éxito")
+        except Exception as e:
+
+            if not os.path.exists(folder_data_dropbox):
+                os.makedirs(folder_data_dropbox)
+
     elif pagina == 'Graficos de Produccion':
         caja_por_hectarea, bacota_por_hectarea = st.tabs(["Caja por hectarea", "Bacota por hectarea"])
         with caja_por_hectarea.container():

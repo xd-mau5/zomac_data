@@ -44,7 +44,6 @@ def files_download(dbx: dropbox.Dropbox, folder: str, file: str, remote_folder: 
         metadata, res = dbx.files_download(remote_folder + "/" + file)
         f.write(res.content)
 
-
 def search_excel_rdt(dbx: dropbox.Dropbox, folder: str, remote_folder: str):
     for entry in dbx.files_list_folder(remote_folder).entries:
         if entry.name.endswith(".xlsx") and entry.name.startswith("RDT"):
@@ -77,7 +76,6 @@ def check_token(TOKEN: str):
             set_key(".env", "DROPBOX_TOKEN", TOKEN)
             dbx = dropbox.Dropbox(TOKEN)
             print("Token actualizado")
-
 
 if not os.path.exists(folder):
     os.makedirs(folder)

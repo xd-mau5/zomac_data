@@ -160,7 +160,7 @@ def procesamiento_datos_sioma_embolse():
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_desflore():
-    df = pd.read_excel(r'c:\Users\alext\Downloads\desflore.xlsx')
+    df = pd.read_excel(r'data/Sioma/desflore.xlsx')
     # Agregamos la columna de Año y Semana
     df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S')
     df['Año'] = df['Fecha'].dt.year
@@ -180,7 +180,7 @@ def procesamiento_datos_sioma_desflore():
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_resiembra():
-    df = pd.read_excel(r'c:\Users\alext\Downloads\resiembra.xlsx')
+    df = pd.read_excel(r'data/Sioma/resiembra.xlsx')
     # Agregamos la columna de Año y Semana
     df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S')
     df['Año'] = df['Fecha'].dt.year

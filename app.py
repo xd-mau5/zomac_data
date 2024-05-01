@@ -140,7 +140,7 @@ def procesamiento_datos_embarque():
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_embolse():
-    df = pd.read_excel(r'c:\Users\alext\Downloads\embolse.xlsx')
+    df = pd.read_excel(r'data/Sioma/embolse.xlsx')
     # Agregamos la columna de Año y Semana
     df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S')
     df['Año'] = df['Fecha'].dt.year
@@ -284,9 +284,9 @@ def run():
                 if check_token(TOKEN):
                     st.success("Autenticado en Dropbox")
                     dbx = dropbox.Dropbox(TOKEN)
-                    st.toast("Descargando archivos necesarios", icon='⏳')
-                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                    with st.spinner("Descargando archivos necesarios"):
+                        search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                        search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
                     st.success("Archivos descargados con éxito")
             else:
                 st.success("Ya se ha autenticado en Dropbox")
@@ -296,12 +296,11 @@ def run():
                     search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
                 st.success("Archivos descargados con éxito")
         except Exception as e:
-
             if not os.path.exists(folder_data_dropbox):
                 os.makedirs(folder_data_dropbox)
 
     elif pagina == 'Graficos de Produccion':
-        caja_por_hectarea, bacota_por_hectarea = st.tabs(["Caja por hectarea", "Bacota por hectarea"])
+        caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion = st.tabs(["Caja por hectarea", "Bacota por hectarea", "Ratio de Producción"])
         with caja_por_hectarea.container():
             data = procesamiento_datos_embarque()
             st.subheader("Filtros para las graficas")
@@ -348,6 +347,9 @@ def run():
                           title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})
             st.plotly_chart(fig, use_container_width=True)
+        
+        with ratio_de_produccion.container():
+            st.write("Ratio de Producción (por implementar)")
 
     elif pagina == 'Graficos Semanales':
         embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])

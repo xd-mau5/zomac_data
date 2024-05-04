@@ -9,15 +9,11 @@ import dropbox.oauth
 import toml
 
 os.makedirs(".streamlit", exist_ok=True)
-if not os.path.exists(".streamlit/secrets.toml"):
-    with open(".streamlit/secrets.toml", "w") as f:
-        f.write("DROPBOX_KEY = ""\n")
-        f.write("DROPBOX_SECRET = ""\n")
-        f.write("DROPBOX_TOKEN = """)
 
 print(st.secrets)
 KEY = st.secrets["DROPBOX_KEY"]
 SECRET = st.secrets["DROPBOX_SECRET"]
+TOKEN = st.secrets["DROPBOX_TOKEN"]
 folder_data_dropbox = r"data/Dropbox"
 
 st.set_page_config(
@@ -283,38 +279,11 @@ def run():
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
     if pagina == 'Autenticacion en Dropbox':
-        TOKEN = st.secrets["DROPBOX_TOKEN"]
         st.write("Autenticacion en Dropbox")
-        try:
-            if TOKEN == "":
-                st.write("Por favor autentiquese en Dropbox para poder descargar los archivos necesarios")
-                st.toast("No se ha autenticado en Dropbox", icon='⚠️')
-                TOKEN = dropbox_oauth()
-                TOKEN = TOKEN.replace("'", "")
-                with open(".streamlit/secrets.toml", "w") as f:
-                    lines = f.readlines()
-                    for line in lines:
-                        if line.startswith("DROPBOX_TOKEN"):
-                            line = f"DROPBOX_TOKEN = '{TOKEN}'\n"
-                        f.write(line)
-                if check_token(TOKEN):
-                    dbx = dropbox.Dropbox(TOKEN)
-                    st.success("Autenticado en Dropbox")
-                    with st.spinner("Descargando archivos necesarios"):
-                        search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                        search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-                    st.success("Archivos descargados con éxito")
-            elif TOKEN is not None:
-                if check_token(TOKEN):
-                    dbx = dropbox.Dropbox(TOKEN)
-                    st.success("Ya se ha autenticado en Dropbox")
-                    with st.spinner("Descargando archivos necesarios"):
-                        search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                        search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-                    st.success("Archivos descargados con éxito")
-        except Exception as e:
-            if not os.path.exists(folder_data_dropbox):
-                os.makedirs(folder_data_dropbox)
+        check_token(TOKEN)
+        dbx = dropbox.Dropbox(TOKEN)
+        dbx.users_get_current_account()
+        dropbox_oauth()
 
     elif pagina == 'Graficos de Produccion':
         caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion = st.tabs(["Caja por hectarea", "Bacota por hectarea", "Ratio de Producción"])

@@ -6,9 +6,6 @@ import os
 import dropbox
 import dropbox.files
 import dropbox.oauth
-import toml
-
-os.makedirs(".streamlit", exist_ok=True)
 
 print(st.secrets)
 KEY = st.secrets["DROPBOX_KEY"]
@@ -61,7 +58,7 @@ def dropbox_oauth():
     except Exception as e:
         print("Error: %s" % (e,))
         return
-
+    st.write("Token de acceso: ", oauth_result.access_token)
     return oauth_result.access_token
 
 def files_download(dbx: dropbox.Dropbox, folder: str, file: str, remote_folder: str):
@@ -83,20 +80,6 @@ def search_excel_embarque(dbx: dropbox.Dropbox, folder: str, remote_folder: str)
             if entry.name.endswith(".xlsx") and "EMBARQUE" in entry.name:
                 return entry.name
             
-def check_token(TOKEN: str):
-    print("Verificando token...")
-    dbx = dropbox.Dropbox(TOKEN)
-    print("Token recibido en la variable dbx", TOKEN)
-    while True:
-        try:
-            print("Accediendo a la cuenta de Dropbox...")
-            dbx.users_get_current_account()
-            break
-        except dropbox.exceptions.AuthError as e:
-            print("Token invalido")
-            dbx = dropbox.Dropbox(TOKEN)
-            print("Token actualizado")
-
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque():
     excel = r'data/Dropbox/LIQUIDADOR DE EMBARQUE.xlsx'
@@ -272,10 +255,19 @@ def run():
 
     if pagina == 'Autenticacion en Dropbox':
         st.write("Autenticacion en Dropbox")
-        check_token(TOKEN)
+        if st.secrets['DROPBOX_TOKEN'] == '':
+            st.code(TOKEN)
+            st.secrets['DROPBOX_TOKEN'] = TOKEN
+        else:
+            st.write("Ya se ha autenticado en Dropbox")
         dbx = dropbox.Dropbox(TOKEN)
-        dbx.users_get_current_account()
-        dropbox_oauth()
+        with st.spinner("Descargando archivos de Dropbox"):
+            # Buscar el archivo de RDT 
+            search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+            # Buscar el archivo de EMBARQUE
+            search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+        st.success("Archivos descargados con exito")
+
 
     elif pagina == 'Graficos de Produccion':
         caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion = st.tabs(["Caja por hectarea", "Bacota por hectarea", "Ratio de Producción"])

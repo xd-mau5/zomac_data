@@ -5,6 +5,7 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [] Peso por Racimo
 - [] Ratio de Producción
 - [] Bolsa por Hectárea
+- [] Bacota por Hectárea (Lote)
 - [x] Implementar la API de Dropbox para obtener los excel de RDT y Embarque
 
 ## Semanales

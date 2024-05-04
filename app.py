@@ -6,11 +6,18 @@ import os
 import dropbox
 import dropbox.files
 import dropbox.oauth
-from dotenv import dotenv_values, set_key
+import toml
 
-env_vars = dotenv_values(".env")
-KEY = env_vars["DROPBOX_KEY"]
-SECRET = env_vars["DROPBOX_SECRET"]
+os.makedirs(".streamlit", exist_ok=True)
+if not os.path.exists(".streamlit/secrets.toml"):
+    with open(".streamlit/secrets.toml", "w") as f:
+        f.write("DROPBOX_KEY = ""\n")
+        f.write("DROPBOX_SECRET = ""\n")
+        f.write("DROPBOX_TOKEN = """)
+
+print(st.secrets)
+KEY = st.secrets["DROPBOX_KEY"]
+SECRET = st.secrets["DROPBOX_SECRET"]
 folder_data_dropbox = r"data/Dropbox"
 
 st.set_page_config(
@@ -52,9 +59,7 @@ def dropbox_oauth():
     authorize_url = flow.start()
     st.write("Ir a la siguiente URL para autorizar la aplicación:")
     st.link_button("Ir a la página de autorización", authorize_url)
-
     auth_code = st.text_input("Ingrese el código de autorización aquí: ").strip()
-
     try:
         oauth_result = flow.finish(auth_code)
     except Exception as e:
@@ -95,7 +100,12 @@ def check_token(TOKEN: str):
             print("Token invalido")
             TOKEN = dropbox_oauth()
             TOKEN = TOKEN.replace("'", "")
-            set_key(".env", "DROPBOX_TOKEN", TOKEN)
+            with open(".streamlit/secrets.toml", "w") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if line.startswith("DROPBOX_TOKEN"):
+                        line = f"DROPBOX_TOKEN = '{TOKEN}'\n"
+                    f.write(line)
             dbx = dropbox.Dropbox(TOKEN)
             print("Token actualizado")
 
@@ -273,28 +283,35 @@ def run():
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
     if pagina == 'Autenticacion en Dropbox':
-        TOKEN = env_vars["DROPBOX_TOKEN"]
+        TOKEN = st.secrets["DROPBOX_TOKEN"]
         st.write("Autenticacion en Dropbox")
         try:
             if TOKEN == "":
                 st.write("Por favor autentiquese en Dropbox para poder descargar los archivos necesarios")
                 st.toast("No se ha autenticado en Dropbox", icon='⚠️')
                 TOKEN = dropbox_oauth()
-                set_key(".env", "DROPBOX_TOKEN", TOKEN)
+                TOKEN = TOKEN.replace("'", "")
+                with open(".streamlit/secrets.toml", "w") as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        if line.startswith("DROPBOX_TOKEN"):
+                            line = f"DROPBOX_TOKEN = '{TOKEN}'\n"
+                        f.write(line)
                 if check_token(TOKEN):
-                    st.success("Autenticado en Dropbox")
                     dbx = dropbox.Dropbox(TOKEN)
+                    st.success("Autenticado en Dropbox")
                     with st.spinner("Descargando archivos necesarios"):
                         search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
                         search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
                     st.success("Archivos descargados con éxito")
-            else:
-                st.success("Ya se ha autenticado en Dropbox")
-                dbx = dropbox.Dropbox(TOKEN)
-                with st.spinner("Descargando archivos necesarios"):
-                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-                st.success("Archivos descargados con éxito")
+            elif TOKEN is not None:
+                if check_token(TOKEN):
+                    dbx = dropbox.Dropbox(TOKEN)
+                    st.success("Ya se ha autenticado en Dropbox")
+                    with st.spinner("Descargando archivos necesarios"):
+                        search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                        search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                    st.success("Archivos descargados con éxito")
         except Exception as e:
             if not os.path.exists(folder_data_dropbox):
                 os.makedirs(folder_data_dropbox)

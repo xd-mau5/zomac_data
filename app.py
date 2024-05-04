@@ -94,14 +94,6 @@ def check_token(TOKEN: str):
             break
         except dropbox.exceptions.AuthError as e:
             print("Token invalido")
-            TOKEN = dropbox_oauth()
-            TOKEN = TOKEN.replace("'", "")
-            with open(".streamlit/secrets.toml", "w") as f:
-                lines = f.readlines()
-                for line in lines:
-                    if line.startswith("DROPBOX_TOKEN"):
-                        line = f"DROPBOX_TOKEN = '{TOKEN}'\n"
-                    f.write(line)
             dbx = dropbox.Dropbox(TOKEN)
             print("Token actualizado")
 

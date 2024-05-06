@@ -287,8 +287,11 @@ def run():
             # Filtrar por finca
             data = data[data['Finca'] == finca_seleccionada_cxh]
             fig = px.bar(data, x=data["Semana"], y=data['Cajas por Hectarea'],
-                          title='Cajas', color_discrete_sequence=['#F4D03F'],
+                          title='Cajas', color='Cajas por Hectarea',
+                          color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Cajas por hectarea'})
+            fig.update_yaxes(range=[0, data['Cajas por Hectarea'].max() + (data['Cajas por Hectarea'].max()/7)])
+            print(data['Cajas por Hectarea'].max())
             st.plotly_chart(fig, use_container_width=True)
             
         with bacota_por_hectarea.container():
@@ -315,8 +318,10 @@ def run():
             # Filtrar por finca
             temp = temp[temp['Finca'] == finca_seleccionada_bxh]
             fig = px.bar(temp, x="Semana", y='Bacotas por Hectarea',
-                          title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
+                          title='Bacotas por Hectarea', color='Bacotas por Hectarea',
+                          color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})
+            fig.update_yaxes(range=[0, temp['Bacotas por Hectarea'].max() + (temp['Bacotas por Hectarea'].max()/7)])
             st.plotly_chart(fig, use_container_width=True)
         
         with ratio_de_produccion.container():
@@ -333,11 +338,16 @@ def run():
                 finca_seleccionada_bxhxl = st.radio("Seleccionar finca", finca_bacota, key='255856952856')
             with anio:
                 anio_seleccionado_bxhxl = st.radio("Filtrar por año", year_bacota, index=year_bacota.size-1, key='16369256935')
-            
             # Filtrar por año
             temp = data[data['Año'] == anio_seleccionado_bxhxl]
             with semana:
-                semana_seleccionada_bxhxl = st.slider("Seleccionar semana", temp['Semana'].unique().min(), temp['Semana'].unique().max(), temp['Semana'].unique().min() ,1)
+                semana_seleccionada_bxhxl = st.slider(
+                    "Seleccionar semana",
+                    temp['Semana'].unique().min(),
+                    temp['Semana'].unique().max(),
+                    temp['Semana'].unique().min(),
+                    1
+                    )
             temp = temp[temp['Semana'] == semana_seleccionada_bxhxl]
             temp = temp[temp['Finca'] == finca_seleccionada_bxhxl]
             temp = temp.groupby(by='Semana')['Lote'].value_counts().unstack().fillna(0)
@@ -350,8 +360,10 @@ def run():
                         temp.at[index, 'Bacotas por Hectarea'] = row['Cantidad'] / row2['Tamaño Area Neta']
             try:
                 fig = px.bar(temp, x="Lote", y='Bacotas por Hectarea',
-                          title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
+                          title='Bacotas por Hectarea', color='Bacotas por Hectarea',
+                          color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})
+                fig.update_yaxes(range=[0, temp['Bacotas por Hectarea'].max() + (temp['Bacotas por Hectarea'].max()/6)])
                 st.plotly_chart(fig, use_container_width=True)
             except ValueError:
                 st.warning("No hay datos en el lote seleccionado", icon='⚠️')
@@ -450,7 +462,7 @@ def run():
                         temp.at[index, 'Porcentaje'] = (row['Unidades Primer Lote'] / row2['Tamaño Area Neta']) * 100
             temp.reset_index(drop=True, inplace=True)
             try:
-                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de maleza', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100])
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de maleza', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet)
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
                 st.plotly_chart(fig, use_container_width=True)
             except ValueError:
@@ -478,7 +490,7 @@ def run():
                         temp.at[index, 'Porcentaje'] = (row['Unidades Primer Lote'] / row2['Tamaño Area Neta']) * 100
             temp.reset_index(drop=True, inplace=True)
             try:
-                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Desmache', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100])
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Desmache', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet)
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
                 st.plotly_chart(fig, use_container_width=True)
             except ValueError:
@@ -503,11 +515,7 @@ def run():
                 st.warning("No hay datos en el lote seleccionado", icon='⚠️')
             else:
                 try:
-                    fig = go.Figure(data=[go.Bar(
-                        x=temp['Semana'],
-                        y=temp['Cantidad'],
-                        hovertemplate='Semana: %{x}<br>Unidades: %{y}<extra></extra>',
-                    )])
+                    fig = px.bar(temp, x='Semana', y='Cantidad', title='Resiembra', hover_data=['Semana', 'Cantidad'], color='Cantidad',color_continuous_scale=px.colors.sequential.Jet)
                     # rango de y
                     fig.update_yaxes(range=[0, temp['Cantidad'].max() + 10])
                     fig.update_layout(xaxis_title='Semana', yaxis_title='Unidades')
@@ -548,7 +556,7 @@ def run():
             temp = temp.groupby(['Año', 'Semana', 'Labores']).sum(numeric_only=True).reset_index()
             temp.reset_index(drop=True, inplace=True)
             try:
-                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de sigatoka', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100])
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de sigatoka', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet)
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
                 st.plotly_chart(fig, use_container_width=False)
             except ValueError:

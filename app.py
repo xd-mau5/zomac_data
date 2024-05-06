@@ -1,3 +1,4 @@
+import dropbox.exceptions
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,7 +8,6 @@ import dropbox
 import dropbox.files
 import dropbox.oauth
 
-print(st.secrets)
 KEY = st.secrets["DROPBOX_KEY"]
 SECRET = st.secrets["DROPBOX_SECRET"]
 TOKEN = st.secrets["DROPBOX_TOKEN"]
@@ -58,7 +58,7 @@ def dropbox_oauth():
     except Exception as e:
         print("Error: %s" % (e,))
         return
-    st.write("Token de acceso: ", oauth_result.access_token)
+    st.code(str(oauth_result.access_token), language="textfile")
     return oauth_result.access_token
 
 def files_download(dbx: dropbox.Dropbox, folder: str, file: str, remote_folder: str):
@@ -254,23 +254,24 @@ def run():
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
     if pagina == 'Autenticacion en Dropbox':
-        st.write("Autenticacion en Dropbox")
-        if st.secrets['DROPBOX_TOKEN'] == '':
-            st.code(TOKEN)
-            st.secrets['DROPBOX_TOKEN'] = TOKEN
-        else:
-            st.write("Ya se ha autenticado en Dropbox")
-        dbx = dropbox.Dropbox(TOKEN)
-        with st.spinner("Descargando archivos de Dropbox"):
-            # Buscar el archivo de RDT 
-            search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-            # Buscar el archivo de EMBARQUE
-            search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-        st.success("Archivos descargados con exito")
-
+            dropbox_oauth()
+            with st.spinner("Descargando archivos de Dropbox"):
+                dbx = dropbox.Dropbox(TOKEN)
+                # Buscar el archivo de RDT 
+                search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                st.success("RDT descargado")
+                # Buscar el archivo de EMBARQUE
+                search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                st.success("Embarque descargado")
+                st.success("Archivos descargados con exito")
 
     elif pagina == 'Graficos de Produccion':
-        caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion = st.tabs(["Caja por hectarea", "Bacota por hectarea", "Ratio de Producción"])
+        caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion, bacota_lote_por_hectarea = st.tabs(
+            ["Caja por hectarea",
+             "Bacota por hectarea",
+             "Ratio de Producción",
+             "Bacota por lote por hectarea"
+             ])
         with caja_por_hectarea.container():
             data = procesamiento_datos_embarque()
             st.subheader("Filtros para las graficas")
@@ -303,7 +304,7 @@ def run():
                 anio_seleccionado_bxh = st.radio("Filtrar por año", year_bacota, index=year_bacota.size-1, key='asdasd')
             # Filtrar por año
             temp = data[data['Año'] == anio_seleccionado_bxh]
-            temp = data.groupby(by='Semana')['Finca'].value_counts().unstack().fillna(0)
+            temp = temp.groupby(by='Semana')['Finca'].value_counts().unstack().fillna(0)
             temp = temp.reset_index()
             temp = temp.melt(id_vars='Semana', var_name='Finca', value_name='Cantidad')
             temp = temp[temp['Cantidad'] != 0]
@@ -320,6 +321,38 @@ def run():
         
         with ratio_de_produccion.container():
             st.write("Ratio de Producción (por implementar)")
+
+        with bacota_lote_por_hectarea.container():
+            data = procesamiento_datos_sioma_embolse()
+            st.subheader("Filtros para las graficas")
+            finca_bacota = data['Finca'].unique()
+            year_bacota = data['Año'].unique()
+            finca, anio, semana = st.columns(3)
+            total_hectareas_lote = pd.read_csv('data/lotes.csv')
+            with finca:
+                finca_seleccionada_bxhxl = st.radio("Seleccionar finca", finca_bacota, key='255856952856')
+            with anio:
+                anio_seleccionado_bxhxl = st.radio("Filtrar por año", year_bacota, index=year_bacota.size-1, key='16369256935')
+            
+            # Filtrar por año
+            temp = data[data['Año'] == anio_seleccionado_bxhxl]
+            with semana:
+                semana_seleccionada_bxhxl = st.slider("Seleccionar semana", temp['Semana'].unique().min(), temp['Semana'].unique().max(), temp['Semana'].unique().min() ,1)
+            temp = temp[temp['Semana'] == semana_seleccionada_bxhxl]
+            temp = temp[temp['Finca'] == finca_seleccionada_bxhxl]
+            temp = temp.groupby(by='Semana')['Lote'].value_counts().unstack().fillna(0)
+            temp = temp.reset_index()
+            temp = temp.melt(id_vars='Semana', var_name='Lote', value_name='Cantidad')
+            temp = temp[temp['Cantidad'] != 0]
+            for index, row in temp.iterrows():
+                for index2, row2 in total_hectareas_lote.iterrows():
+                    if row['Lote'] == row2['Lote  Generico']:
+                        temp.at[index, 'Bacotas por Hectarea'] = row['Cantidad'] / row2['Tamaño Area Neta']
+                        print(row['Cantidad'], row2['Tamaño Area Neta'])
+            fig = px.bar(temp, x="Lote", y='Bacotas por Hectarea',
+                          title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
+                          labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})
+            st.plotly_chart(fig, use_container_width=True)
 
     elif pagina == 'Graficos Semanales':
         embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])

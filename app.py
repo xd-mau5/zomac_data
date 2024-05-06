@@ -348,7 +348,6 @@ def run():
                 for index2, row2 in total_hectareas_lote.iterrows():
                     if row['Lote'] == row2['Lote  Generico']:
                         temp.at[index, 'Bacotas por Hectarea'] = row['Cantidad'] / row2['Tamaño Area Neta']
-                        print(row['Cantidad'], row2['Tamaño Area Neta'])
             fig = px.bar(temp, x="Lote", y='Bacotas por Hectarea',
                           title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})

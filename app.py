@@ -348,10 +348,13 @@ def run():
                 for index2, row2 in total_hectareas_lote.iterrows():
                     if row['Lote'] == row2['Lote  Generico']:
                         temp.at[index, 'Bacotas por Hectarea'] = row['Cantidad'] / row2['Tamaño Area Neta']
-            fig = px.bar(temp, x="Lote", y='Bacotas por Hectarea',
+            try:
+                fig = px.bar(temp, x="Lote", y='Bacotas por Hectarea',
                           title='Bacotas por Hectarea', color_discrete_sequence=['#F4D03F'],
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'})
-            st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
+            except ValueError:
+                st.warning("No hay datos en el lote seleccionado", icon='⚠️')
 
     elif pagina == 'Graficos Semanales':
         embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])

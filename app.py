@@ -303,6 +303,7 @@ def run():
                           color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Cajas por hectarea'})
             fig.update_yaxes(range=[0, data['Cajas por Hectarea'].max() + (data['Cajas por Hectarea'].max()/7)])
+            print(data['Cajas por Hectarea'].max())
             st.plotly_chart(fig, use_container_width=True)
             
         with bacota_por_hectarea.container():

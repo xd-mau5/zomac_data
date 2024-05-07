@@ -48,7 +48,7 @@ paginas = ['Autenticacion en Dropbox',
            'Tareas Periodicas']
 
 def dropbox_oauth():
-    flow = dropbox.DropboxOAuth2FlowNoRedirect(KEY, SECRET, token_access_type="legacy")
+    flow = dropbox.DropboxOAuth2FlowNoRedirect(KEY, SECRET, token_access_type="legacy", locale="es-419")
     authorize_url = flow.start()
     st.write("Ir a la siguiente URL para autorizar la aplicación:")
     st.link_button("Ir a la página de autorización", authorize_url)
@@ -82,9 +82,14 @@ def search_excel_embarque(dbx: dropbox.Dropbox, folder: str, remote_folder: str)
             
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque():
-    excel = r'data/Dropbox/LIQUIDADOR DE EMBARQUE.xlsx'
+    # Listar los archivos en la carpeta 'data/Dropbox'
+    archivos = os.listdir('data/Dropbox')
+    # Buscar el archivo de EMBARQUE
+    for archivo in archivos:
+        if "EMBARQUE" in archivo:
+            embarque = archivo
     sheet = 'CALCULO PAGO'
-    df = pd.read_excel(excel, sheet_name=sheet)
+    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
     df = df.iloc[6:, 2:]
     df.columns = df.iloc[0]
     df = df.iloc[1:]
@@ -178,7 +183,14 @@ def procesamiento_datos_sioma_resiembra():
 
 @st.cache_data(ttl='12h')
 def procesamiento_datos_rdt():
-    df = pd.read_excel(r'data/Dropbox/RDT  26  de Abril de 2024  (1) (version 1).xlsb.xlsx', sheet_name='RDT')
+    # Listar los archivos en la carpeta 'data/Dropbox'
+    archivos = os.listdir('data/Dropbox')
+    # Buscar el archivo de RDT
+    for archivo in archivos:
+        if archivo.startswith('RDT'):
+            rdt = archivo
+    # Leer el archivo de RDT
+    df = pd.read_excel(r'data/Dropbox/' + rdt)
     # Eliminamos las primeras 13 filas y la primera columna
     df = df.iloc[13:, 1:]
     # Colocamos la primera fila como titulos de las columnas
@@ -291,7 +303,6 @@ def run():
                           color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Cajas por hectarea'})
             fig.update_yaxes(range=[0, data['Cajas por Hectarea'].max() + (data['Cajas por Hectarea'].max()/7)])
-            print(data['Cajas por Hectarea'].max())
             st.plotly_chart(fig, use_container_width=True)
             
         with bacota_por_hectarea.container():
@@ -366,7 +377,7 @@ def run():
                 fig.update_yaxes(range=[0, temp['Bacotas por Hectarea'].max() + (temp['Bacotas por Hectarea'].max()/6)])
                 st.plotly_chart(fig, use_container_width=True)
             except ValueError:
-                st.warning("No hay datos en el lote seleccionado", icon='⚠️')
+                st.warning("No hay datos en la semana seleccionada", icon='⚠️')
 
     elif pagina == 'Graficos Semanales':
         embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])

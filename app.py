@@ -52,7 +52,7 @@ def dropbox_oauth():
     authorize_url = flow.start()
     st.write("Ir a la siguiente URL para autorizar la aplicación:")
     st.link_button("Ir a la página de autorización", authorize_url)
-    auth_code = st.text_input("Ingrese el código de autorización aquí: ").strip()
+    auth_code = st.text_input("Ingrese el código de autorización aquí: ", key='5221154').strip()
     try:
         oauth_result = flow.finish(auth_code)
     except Exception as e:
@@ -61,6 +61,21 @@ def dropbox_oauth():
     st.code(str(oauth_result.access_token), language="textfile")
     return oauth_result.access_token
 
+def change_token_secrets():
+    new_secret = ""
+    # Modificamos el archivo de secretos, es un TOML, leerlo y modificar la linea que contiene el token
+    while new_secret == "":
+        new_secret = st.text_input("Ingrese el nuevo token secreto: ", key='15854551').strip()
+    with open(".streamlit/secrets.toml", "r") as f:
+        lines = f.readlines()
+    with open(".streamlit/secrets.toml", "w") as f:
+        for line in lines:
+            if "DROPBOX_TOKEN" in line:
+                f.write(f'DROPBOX_TOKEN = "{new_secret}"\n')
+                st.success("Token secreto modificado con exito")
+            else:
+                f.write(line)
+            
 def files_download(dbx: dropbox.Dropbox, folder: str, file: str, remote_folder: str):
     with open(os.path.join(folder, file), "wb") as f:
         metadata, res = dbx.files_download(remote_folder + "/" + file)
@@ -142,6 +157,54 @@ def procesamiento_datos_sioma_embolse():
     df = df[df['Finca'] != '']
     color = pd.read_csv('data/colores_semana_embolse.csv')
     df['Codigo Color'] = df['Color'].map(dict(zip(color['Color'], color['Codigo Color'])))
+    return df
+
+def procesamiento_datos_embarque_ratio():
+    # Listar los archivos en la carpeta 'data/Dropbox'
+    archivos = os.listdir('data/Dropbox')
+    # Buscar el archivo de EMBARQUE
+    for archivo in archivos:
+        if "EMBARQUE" in archivo and not archivo.startswith('~$'):
+            embarque = archivo
+    sheet = 'CALCULO PAGO'
+    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
+    df = df.iloc[6:, 2:]
+    df.columns = df.iloc[0]
+    df = df.iloc[1:]
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    # Convertimos la fecha al formato 'DD/MM/YYYY'
+    df['Fecha'] = df['Fecha'].dt.strftime('%d/%m/%Y')
+    df.reset_index(drop=True, inplace=True)
+    columnas_a_conservar = ['Fecha', 'Año', 'Semana', 'Cajas', 'Finca', 'Total Racimos', 'Ratio', 'Bolsas']
+    df = df[columnas_a_conservar]
+    # Eliminamos las filas que en Cajas tengan un valor NaN
+    df = df.dropna(subset=['Cajas']).reset_index(drop=True)
+    df = df.groupby(['Año', 'Semana', 'Finca']).sum().reset_index()
+    df.drop(columns=['Fecha'], inplace=True)
+    df['Año'] = df['Año'].astype(int)
+    df['Semana'] = df['Semana'].astype(int)
+    df['Cajas'] = df['Cajas'].astype(int)
+    df['Total Racimos'] = df['Total Racimos'].astype(int)
+    df['Ratio'] = df['Ratio'].astype(float)
+    df['Bolsas'] = df['Bolsas'].astype(float)
+    df['Ratio'] = df['Total Racimos'] / df['Cajas']
+    return df
+
+@st.cache_data(ttl='12h')
+def procesamiento_datos_sioma_corte():
+    df = pd.read_excel(r'data/Sioma/corte.xlsx')
+    # Agregamos la columna de Año y Semana
+    df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S')
+    df['Año'] = df['Fecha'].dt.year
+    df['Semana'] = df['Fecha'].dt.isocalendar().week
+    df['Finca'] = ''
+    # Usando la informacion del diccionario fincas, si un lote dentro del dataframe esta en uno de los values de finca, colocar la key en la columna finca
+    for index, row in df.iterrows():
+        for key, value in fincas.items():
+            if row['Lote'] in value:
+                df.at[index, 'Finca'] = key
+    df = df.dropna(subset=['Lote'])
+    df = df[df['Finca'] != '']
     return df
 
 @st.cache_data(ttl='12h')
@@ -266,16 +329,27 @@ def run():
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
     if pagina == 'Autenticacion en Dropbox':
-            dropbox_oauth()
-            with st.spinner("Descargando archivos de Dropbox"):
+            try:
                 dbx = dropbox.Dropbox(TOKEN)
-                # Buscar el archivo de RDT 
+                with st.spinner("Descargando archivos de Dropbox"):
+                    dbx = dropbox.Dropbox(TOKEN)
+                    # Buscar el archivo de RDT 
+                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                    st.success("RDT descargado")
+                    # Buscar el archivo de EMBARQUE
+                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                    st.success("Embarque descargado")
+                    st.success("Archivos descargados con exito")
+            except dropbox.exceptions.AuthError as e:
+                print("Error: %s" % (e,))
+                dropbox_oauth()
+                change_token_secrets()
                 search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                st.success("RDT descargado")
-                # Buscar el archivo de EMBARQUE
                 search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-                st.success("Embarque descargado")
-                st.success("Archivos descargados con exito")
+                st.success("Autenticación exitosa")
+            except dropbox.exceptions.HttpError as e:
+                print("Error: %s" % (e,))
+            
 
     elif pagina == 'Graficos de Produccion':
         caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion, bacota_lote_por_hectarea = st.tabs(
@@ -303,7 +377,6 @@ def run():
                           color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Cajas por hectarea'})
             fig.update_yaxes(range=[0, data['Cajas por Hectarea'].max() + (data['Cajas por Hectarea'].max()/7)])
-            print(data['Cajas por Hectarea'].max())
             st.plotly_chart(fig, use_container_width=True)
             
         with bacota_por_hectarea.container():
@@ -337,7 +410,18 @@ def run():
             st.plotly_chart(fig, use_container_width=True)
         
         with ratio_de_produccion.container():
-            st.write("Ratio de Producción (por implementar)")
+            data_embarque = procesamiento_datos_embarque_ratio()
+            st.subheader("Filtros para las graficas")
+            finca, anio = st.columns(2)
+            with finca:
+                finca_seleccionada_rdp = st.radio("Seleccionar finca", fincas.keys(), key='1714060469')
+            with anio:
+                anio_seleccionado_rdp = st.radio("Filtrar por año", data_embarque['Año'].unique(), key='1714060512', index=data_embarque['Año'].unique().size-1)
+            data_embarque = data_embarque[(data_embarque['Finca'] == finca_seleccionada_rdp) & (data_embarque['Año'] == anio_seleccionado_rdp)]
+            st.write("Datos de embarque")
+            fig = px.bar(data_embarque, x='Semana', y='Ratio', title='Ratio de Producción', color='Cajas', color_continuous_scale=px.colors.sequential.Jet)
+            fig.update_layout(xaxis_title='Semana', yaxis_title='Ratio')
+            st.plotly_chart(fig, use_container_width=True)
 
         with bacota_lote_por_hectarea.container():
             data = procesamiento_datos_sioma_embolse()

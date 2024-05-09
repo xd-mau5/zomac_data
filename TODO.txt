@@ -2,7 +2,7 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [x] Caja por Hectárea (Finca)
 - [x] Bacota por Hectárea (Finca)
 - [] Peso por Racimo
-- [] Ratio de Producción
+- [x] Ratio de Producción
 - [] Bolsa por Hectárea
 - [x] Bacota por Hectárea (Lote)
 - [x] Implementar la API de Dropbox para obtener los excel de RDT y Embarque

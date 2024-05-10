@@ -65,7 +65,10 @@ def change_token_secrets():
     new_secret = ""
     # Modificamos el archivo de secretos, es un TOML, leerlo y modificar la linea que contiene el token
     while new_secret == "":
-        new_secret = st.text_input("Ingrese el nuevo token secreto: ", key='15854551').strip()
+        try:
+            new_secret = st.text_input("Ingrese el nuevo token secreto: ").strip()
+        except Exception as e:
+            pass
     with open(".streamlit/secrets.toml", "r") as f:
         lines = f.readlines()
     with open(".streamlit/secrets.toml", "w") as f:
@@ -344,6 +347,7 @@ def run():
                 print("Error: %s" % (e,))
                 dropbox_oauth()
                 change_token_secrets()
+                st.cache.clear()
                 search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
                 search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
                 st.success("Autenticación exitosa")

@@ -162,6 +162,7 @@ def procesamiento_datos_sioma_embolse():
     df['Codigo Color'] = df['Color'].map(dict(zip(color['Color'], color['Codigo Color'])))
     return df
 
+@st.cache_data(ttl='12h')
 def procesamiento_datos_embarque_ratio():
     # Listar los archivos en la carpeta 'data/Dropbox'
     archivos = os.listdir('data/Dropbox')
@@ -256,7 +257,7 @@ def procesamiento_datos_rdt():
         if archivo.startswith('RDT'):
             rdt = archivo
     # Leer el archivo de RDT
-    df = pd.read_excel(r'data/Dropbox/' + rdt)
+    df = pd.read_excel(r'data/Dropbox/' + rdt, sheet_name='RDT')
     # Eliminamos las primeras 13 filas y la primera columna
     df = df.iloc[13:, 1:]
     # Colocamos la primera fila como titulos de las columnas
@@ -347,9 +348,16 @@ def run():
                 print("Error: %s" % (e,))
                 dropbox_oauth()
                 change_token_secrets()
-                st.cache.clear()
-                search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                dbx = dropbox.Dropbox(TOKEN)
+                with st.spinner("Descargando archivos de Dropbox"):
+                    dbx = dropbox.Dropbox(TOKEN)
+                    # Buscar el archivo de RDT 
+                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
+                    st.success("RDT descargado")
+                    # Buscar el archivo de EMBARQUE
+                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
+                    st.success("Embarque descargado")
+                    st.success("Archivos descargados con exito")
                 st.success("Autenticación exitosa")
             except dropbox.exceptions.HttpError as e:
                 print("Error: %s" % (e,))

@@ -21,6 +21,11 @@ RUN mkdir /app/data/Dropbox
 RUN  python -m pip install --upgrade pip
 RUN python -m pip install -r requirements.txt
 
-# Exponemos el puerto
-EXPOSE 8501
-CMD [ "streamlit", "run", "app.py" ,"--server.port", "80"]
+# Exponemos el puerto 8080
+EXPOSE 8080
+CMD [ "streamlit", "run", "app.py"]
+
+# Construimos la imagen
+# docker build -t tropical_data .
+# Bindeamos el puerto 8080
+# docker run -p 8080:8080 tropical_data

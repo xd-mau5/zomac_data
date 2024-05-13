@@ -3,7 +3,7 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [x] Bacota por Hectárea (Finca)
 - [] Peso por Racimo
 - [x] Ratio de Producción
-- [] Bolsa por Hectárea
+- [x] Bacota por Lote
 - [x] Bacota por Hectárea (Lote)
 - [x] Implementar la API de Dropbox para obtener los excel de RDT y Embarque
 
@@ -12,6 +12,7 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [x] Desflore (Grafico de Producción)
 - [] Amarre (Grafico parcialmente implementado, a espera de datos de Sioma)
 - [] Deshoje (Grafico parcialmente implementado, a espera de datos de Sioma)
+- [] Coco
 ## Periodicas
 - [x] Control Maleza
 - [x] Desmache

@@ -196,6 +196,38 @@ def procesamiento_datos_embarque_ratio():
     return df
 
 @st.cache_data(ttl='12h')
+def procesamiento_datos_embarque_ratio_inverso():
+    # Listar los archivos en la carpeta 'data/Dropbox'
+    archivos = os.listdir('data/Dropbox')
+    # Buscar el archivo de EMBARQUE
+    for archivo in archivos:
+        if "EMBARQUE" in archivo and not archivo.startswith('~$'):
+            embarque = archivo
+    sheet = 'CALCULO PAGO'
+    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
+    df = df.iloc[6:, 2:]
+    df.columns = df.iloc[0]
+    df = df.iloc[1:]
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    # Convertimos la fecha al formato 'DD/MM/YYYY'
+    df['Fecha'] = df['Fecha'].dt.strftime('%d/%m/%Y')
+    df.reset_index(drop=True, inplace=True)
+    columnas_a_conservar = ['Fecha', 'Año', 'Semana', 'Cajas', 'Finca', 'Total Racimos', 'Ratio', 'Bolsas']
+    df = df[columnas_a_conservar]
+    # Eliminamos las filas que en Cajas tengan un valor NaN
+    df = df.dropna(subset=['Cajas']).reset_index(drop=True)
+    df = df.groupby(['Año', 'Semana', 'Finca']).sum().reset_index()
+    df.drop(columns=['Fecha'], inplace=True)
+    df['Año'] = df['Año'].astype(int)
+    df['Semana'] = df['Semana'].astype(int)
+    df['Cajas'] = df['Cajas'].astype(int)
+    df['Total Racimos'] = df['Total Racimos'].astype(int)
+    df['Ratio'] = df['Ratio'].astype(float)
+    df['Bolsas'] = df['Bolsas'].astype(float)
+    df['Ratio'] = df['Cajas'] / df['Total Racimos']
+    return df
+
+@st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_corte():
     df = pd.read_excel(r'data/Sioma/corte.xlsx')
     # Agregamos la columna de Año y Semana
@@ -382,12 +414,14 @@ def run():
             
 
     elif pagina == 'Graficos de Produccion':
-        caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion, bacota_lote_por_hectarea, bacota_lote = st.tabs(
+        caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion, ratio_de_produccion_inverso, bacota_lote_por_hectarea, bacota_lote, bacota_finca = st.tabs(
             ["Caja por hectarea",
              "Bacota por hectarea",
              "Ratio de Producción",
+             "Ratio de Producción Inverso",
              "Bacota por lote por hectarea",
-             "Cantidad de Bacotas por lote"
+             "Cantidad de Bacotas por lote",
+             "Cantidad de Bacotas por finca"
              ])
         with caja_por_hectarea.container():
             data = procesamiento_datos_embarque()
@@ -408,6 +442,8 @@ def run():
                           color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Cajas por hectarea'},
                           text_auto=True)
+            fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Cajas por Hectarea: %{y}<br><extra></extra>')
+            fig.update_xaxes(dtick=1)
             fig.update_yaxes(range=[0, data['Cajas por Hectarea'].max() + (data['Cajas por Hectarea'].max()/7)])
             st.plotly_chart(fig, use_container_width=True)
             
@@ -438,7 +474,10 @@ def run():
                           title='Bacotas por Hectarea', color='Bacotas por Hectarea',
                           color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'},
-                          text_auto=True)
+                          text_auto=True,
+                          )
+            fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Bacotas por Hectarea: %{y}<br><extra></extra>')
+            fig.update_xaxes(dtick=1)
             fig.update_yaxes(range=[0, temp['Bacotas por Hectarea'].max() + (temp['Bacotas por Hectarea'].max()/7)])
             st.plotly_chart(fig, use_container_width=True)
         
@@ -452,11 +491,39 @@ def run():
                 anio_seleccionado_rdp = st.radio("Filtrar por año", data_embarque['Año'].unique(), key='1714060512', index=data_embarque['Año'].unique().size-1)
             data_embarque = data_embarque[(data_embarque['Finca'] == finca_seleccionada_rdp) & (data_embarque['Año'] == anio_seleccionado_rdp)]
             st.write("Datos de embarque")
-            fig = px.bar(data_embarque, x='Semana', y='Ratio', title='Ratio de Producción', color='Ratio', color_continuous_scale=px.colors.sequential.Jet_r,
+            fig = px.bar(data_embarque, x='Semana', y='Ratio', title='Ratio de Producción', color='Ratio', color_continuous_scale=px.colors.sequential.Turbo,
                          text_auto=True)
             fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Ratio: %{y:.2f}<br><extra></extra>')
+            fig.update_xaxes(range=[0.5, data_embarque['Semana'].max() + 1], dtick=1)
             fig.update_yaxes(range=[0, data_embarque['Ratio'].max() + (data_embarque['Ratio'].max()/6)])
             fig.update_layout(xaxis_title='Semana', yaxis_title='Ratio')
+            # Agregamos una linea horizontal para un ratio de 4, debe tener un texto que diga "Ratio maximo"
+            fig.add_hline(y=4, line_dash="dash", line_color="red", annotation_text="Ratio maximo", annotation_position="top left", col="all")
+            # Agregamos un texto que diga el significado del ratio en la parte superior derecha
+            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+2, text="Ratio = Total Racimos / Cajas", showarrow=False, xshift=10, yshift=10)
+            st.plotly_chart(fig, use_container_width=True)
+
+        with ratio_de_produccion_inverso.container():
+            data_embarque = procesamiento_datos_embarque_ratio_inverso()
+            st.dataframe(data_embarque)
+            st.subheader("Filtros para las graficas")
+            finca, anio = st.columns(2)
+            with finca:
+                finca_seleccionada_rdp = st.radio("Seleccionar finca", fincas.keys(), key='17142060469')
+            with anio:
+                anio_seleccionado_rdp = st.radio("Filtrar por año", data_embarque['Año'].unique(), key='171406204512', index=data_embarque['Año'].unique().size-1)
+            data_embarque = data_embarque[(data_embarque['Finca'] == finca_seleccionada_rdp) & (data_embarque['Año'] == anio_seleccionado_rdp)]
+            st.write("Datos de embarque")
+            fig = px.bar(data_embarque, x='Semana', y='Ratio', title='Ratio de Producción Inverso', color='Ratio', color_continuous_scale=px.colors.sequential.Turbo_r,
+                         text_auto=True)
+            fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Ratio: %{y:.2f}<br><extra></extra>')
+            fig.update_xaxes(range=[0.5, data_embarque['Semana'].max() + 0.5], dtick=1)
+            fig.update_yaxes(range=[0, data_embarque['Ratio'].max() + (data_embarque['Ratio'].max()/6)])
+            fig.update_layout(xaxis_title='Semana', yaxis_title='Ratio')
+            # Agregamos una linea horizontal para un ratio de 4, debe tener un texto que diga "Ratio maximo"
+            # fig.add_hline(y=4, line_dash="dash", line_color="red", annotation_text="Ratio maximo", annotation_position="top left", col="all")
+            # Agregamos un texto que diga el significado del ratio en la parte superior derecha
+            #fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+0.5, text="Ratio = Total Racimos / Cajas", showarrow=False, xshift=10, yshift=10)
             st.plotly_chart(fig, use_container_width=True)
 
         with bacota_lote_por_hectarea.container():
@@ -473,7 +540,7 @@ def run():
                 finca_seleccionada_bxhxl = st.radio("Seleccionar finca", finca_bacota, key='2558592342352856')
             temp = temp[temp['Finca'] == finca_seleccionada_bxhxl]
             with semana:
-                semana_seleccionada_bxhxl = st.selectbox("Seleccionar semana", np.sort(temp['Semana'].unique()))
+                semana_seleccionada_bxhxl = st.selectbox("Seleccionar semana", np.sort(temp['Semana'].unique()), index=np.sort(temp['Semana'].unique()).size-1)
             temp = temp[temp['Semana'] == semana_seleccionada_bxhxl]
             temp = temp.groupby(by='Semana')['Lote'].value_counts().unstack().fillna(0)
             temp = temp.reset_index()
@@ -489,6 +556,7 @@ def run():
                           color_continuous_scale=px.colors.sequential.Jet,
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'},
                           text_auto=True)
+                fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Lote: %{x}<br>Bacotas por Hectarea: %{y}<br><extra></extra>')
                 fig.update_yaxes(range=[0, temp['Bacotas por Hectarea'].max() + (temp['Bacotas por Hectarea'].max()/6)])
                 st.plotly_chart(fig, use_container_width=True)
             except ValueError:
@@ -508,7 +576,7 @@ def run():
                 finca_seleccionada_bxl = st.radio("Seleccionar finca", finca_bacota, key='25585692342352856')
             temp = temp[temp['Finca'] == finca_seleccionada_bxl]
             with semana:
-                semana_seleccionada_bxl = st.selectbox("Seleccionar semana", np.sort(temp['Semana'].unique()), key='56114')
+                semana_seleccionada_bxl = st.selectbox("Seleccionar semana", np.sort(temp['Semana'].unique()), key='56114', index=np.sort(temp['Semana'].unique()).size-1)
             temp = temp[temp['Semana'] == semana_seleccionada_bxl]
             temp = temp.groupby(by='Semana')['Lote'].value_counts().unstack().fillna(0)
             temp = temp.reset_index()
@@ -521,11 +589,37 @@ def run():
                               title='Cantidad de Bacotas por Lote', color='Cantidad',
                               color_continuous_scale=px.colors.sequential.Jet,
                               labels={'x': 'Semana', 'y': 'Cantidad de Bacotas'},
-                            text_auto=True)
-                fig.update_yaxes(range=[0, temp['Cantidad'].max() + (temp['Cantidad'].max()/6)])
+                              text_auto=True
+                              )
+                fig.update_xaxes(dtick=1)
+                fig.update_yaxes(range=[0, temp['Cantidad'].max() + (temp['Cantidad'].max()/3)], dtick=20)
                 st.plotly_chart(fig, use_container_width=True)
-            st.dataframe(temp)
-            
+        
+        with bacota_finca.container():
+            data = procesamiento_datos_sioma_embolse()
+            st.subheader("Filtros para las graficas")
+            finca_bacota = data['Finca'].unique()
+            year_bacota = data['Año'].unique()
+            finca, anio = st.columns(2)
+            with anio:
+                anio_seleccionado_bf = st.radio("Filtrar por año", year_bacota, index=year_bacota.size-1, key='163692135935')
+                temp = data[data['Año'] == anio_seleccionado_bf]
+            with finca:
+                finca_seleccionada_bf = st.radio("Seleccionar finca", finca_bacota, key='258592342352856')
+                temp = temp[temp['Finca'] == finca_seleccionada_bf]
+            temp = temp.groupby(by='Semana')['Finca'].value_counts().unstack().fillna(0)
+            temp = temp.reset_index()
+            temp = temp.melt(id_vars='Semana', var_name='Finca', value_name='Cantidad')
+            temp = temp[temp['Cantidad'] != 0]
+            fig = px.bar(temp, x="Semana", y='Cantidad',
+                            title='Cantidad de Bacotas por Finca', color='Cantidad',
+                            color_continuous_scale=px.colors.sequential.Jet,
+                            labels={'x': 'Semana', 'y': 'Cantidad de Bacotas'},
+                            text_auto=True
+                            )
+            fig.update_xaxes(dtick=1)
+            fig.update_yaxes(range=[0, temp['Cantidad'].max() + (temp['Cantidad'].max()/6)])
+            st.plotly_chart(fig, use_container_width=True)
 
     elif pagina == 'Graficos Semanales':
         embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])
@@ -552,6 +646,7 @@ def run():
                 texttemplate='%{y}', textposition='inside'
                 )],
             )
+            fig.update_xaxes(dtick=1)
             fig.update_layout(title='Embolse', xaxis_title='Semana', yaxis_title='Cantidad')
             st.plotly_chart(fig, use_container_width=True)
 
@@ -561,11 +656,13 @@ def run():
             finca, lote, anio = st.columns(3)
             with finca:
                 finca_seleccionada_desflore = st.radio("Seleccionar finca", data_desflore['Finca'].unique(), key='1714060469')
+                data_desflore = data_desflore[data_desflore['Finca'] == finca_seleccionada_desflore]
             with lote:
-                lote_seleccionado_desflore = st.selectbox("Seleccionar lote", data_desflore[(data_desflore['Finca'] == finca_seleccionada_desflore)]['Lote'].sort_values().unique(), key='1714060486')
+                lote_seleccionado_desflore = st.selectbox("Seleccionar lote", data_desflore['Lote'].sort_values().unique(), key='1714060486')
             with anio:
                 anio_seleccionado_desflore = st.radio("Filtrar por año", data_desflore['Año'].unique(), key='1714060512')
-            data_embolse = data_embolse[(data_embolse['Finca'] == finca_seleccionada_desflore) & (data_desflore['Lote'] == lote_seleccionado_desflore) & (data_desflore['Año'] == anio_seleccionado_desflore)]
+                data_desflore = data_desflore[data_desflore['Año'] == anio_seleccionado_desflore]
+            data_desflore = data_desflore[data_desflore['Lote'] == lote_seleccionado_desflore]
             temp = data_desflore.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
             temp = temp.reset_index()
             temp = temp.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
@@ -575,9 +672,10 @@ def run():
                 y=temp['Cantidad'],
                 marker=dict(color=data_desflore[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values),
                 hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br>Color: %{marker.color}<extra></extra>',
-                text=[f"{color} - {cantidad}" for color, cantidad in zip(temp['Color'], temp['Cantidad'])]
+                text=[f"{color} - {cantidad}" for color, cantidad in zip(temp['Color'], temp['Cantidad'])],
                 )]
             )
+            fig.update_xaxes(dtick=1)
             st.plotly_chart(fig, use_container_width=True)
         with amarre:
             st.write("Amarre")
@@ -626,6 +724,7 @@ def run():
             try:
                 fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de maleza',
                               hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet, text='Porcentaje')
+                fig.update_xaxes(tickmode='linear')
                 fig.update_traces(hovertemplate='Semana: %{x}<br>%{y}%<br><extra></extra>', texttemplate='%{y:.2f}%', textposition='inside')
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
                 st.plotly_chart(fig, use_container_width=True)
@@ -655,6 +754,7 @@ def run():
             temp.reset_index(drop=True, inplace=True)
             try:
                 fig = px.bar(temp, x='Semana', y='Porcentaje', title='Desmache', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet)
+                fig.update_xaxes(dtick=1)
                 fig.update_traces(hovertemplate='Semana: %{x}<br>%{y}%<br><extra></extra>', texttemplate='%{y:.2f}%', textposition='inside')
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
                 st.plotly_chart(fig, use_container_width=True)
@@ -682,6 +782,7 @@ def run():
                 try:
                     fig = px.bar(temp, x='Semana', y='Cantidad', title='Resiembra', hover_data=['Semana', 'Cantidad'], color='Cantidad',color_continuous_scale=px.colors.sequential.Jet)
                     fig.update_traces(hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br><extra></extra>', texttemplate='%{y}', textposition='inside')
+                    fig.update_xaxes(dtick=1)
                     # rango de y
                     fig.update_yaxes(range=[0, temp['Cantidad'].max() + 10])
                     fig.update_layout(xaxis_title='Semana', yaxis_title='Unidades')
@@ -723,6 +824,7 @@ def run():
             temp.reset_index(drop=True, inplace=True)
             try:
                 fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de sigatoka', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet)
+                fig.update_xaxes(dtick=1)
                 fig.update_traces(hovertemplate='Semana: %{x}<br>%{y}%<br><extra></extra>', texttemplate='%{y:.2f}%', textposition='inside')
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
                 st.plotly_chart(fig, use_container_width=False)

@@ -552,7 +552,7 @@ def run():
             fig.update_yaxes(range=[0, data_embarque['Ratio'].max() + (data_embarque['Ratio'].max()/6)])
             fig.update_layout(xaxis_title='Semana', yaxis_title='Ratio')
             # Agregamos una linea horizontal para un ratio de 4, debe tener un texto que diga "Ratio maximo"
-            fig.add_hline(y=0.8, line_dash="dash", line_color="red", annotation_text="Ratio meta", annotation_position="top right", col="all")
+            fig.add_hline(y=0.45, line_dash="dash", line_color="red", annotation_text="Ratio Maximo", annotation_position="top right", col="all")
             # Agregamos un texto que diga el significado del ratio en la parte superior derecha
             #fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+0.5, text="Ratio = Total Racimos / Cajas", showarrow=False, xshift=10, yshift=10)
             st.plotly_chart(fig, use_container_width=True)
@@ -677,7 +677,7 @@ def run():
             st.plotly_chart(fig, use_container_width=True)
 
     elif pagina == 'Graficos Semanales':
-        embolse, desflore, amarre, deshoje = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje"])
+        embolse, desflore, amarre, deshoje, embolse_finca = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje", "Embolse por finca"])
         with embolse:
             st.subheader("Filtros para las graficas")
             data_embolse = procesamiento_datos_sioma_embolse()
@@ -687,7 +687,7 @@ def run():
             with lote:
                 lote_seleccionado_embolse = st.selectbox("Seleccionar lote", data_embolse[(data_embolse['Finca'] == finca_seleccionada_embolse)]['Lote'].sort_values().unique())
             with anio:
-                anio_seleccionado_embolse = st.radio("Filtrar por año", data_embolse['Año'].unique())
+                anio_seleccionado_embolse = st.radio("Filtrar por año", data_embolse['Año'].unique(), index=data_embolse['Año'].unique().size-1)
             data_embolse = data_embolse[(data_embolse['Finca'] == finca_seleccionada_embolse) & (data_embolse['Lote'] == lote_seleccionado_embolse) & (data_embolse['Año'] == anio_seleccionado_embolse)]
             temp = data_embolse.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
             temp = temp.reset_index()
@@ -738,6 +738,30 @@ def run():
         with deshoje:
             st.write("Deshoje")
             st.subheader("Por implementar")
+
+        with embolse_finca:
+            data_embolse = procesamiento_datos_sioma_embolse()
+            st.subheader("Filtros para las graficas")
+            finca, anio = st.columns(2)
+            with finca:
+                finca_seleccionada_embolse = st.radio("Seleccionar finca", data_embolse['Finca'].unique(), key='17140460469')
+            with anio:
+                anio_seleccionado_embolse = st.radio("Filtrar por año", data_embolse['Año'].unique(), key='17140620512', index=data_embolse['Año'].unique().size-1)
+            data_embolse = data_embolse[(data_embolse['Finca'] == finca_seleccionada_embolse) & (data_embolse['Año'] == anio_seleccionado_embolse)]
+            temp = data_embolse.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
+            temp = temp.reset_index()
+            temp = temp.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
+            temp = temp[temp['Cantidad'] != 0]
+            fig = go.Figure(data=[go.Bar(
+                x=temp['Semana'],
+                y=temp['Cantidad'],
+                marker=dict(color=data_embolse[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values),
+                hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br><extra></extra>',
+                texttemplate='%{y}', textposition='inside'
+                )]
+            )
+            fig.update_xaxes(dtick=1)
+            st.plotly_chart(fig, use_container_width=True)
             
     elif pagina == 'Tareas Periodicas':
         st.write("Tareas Periodicas")

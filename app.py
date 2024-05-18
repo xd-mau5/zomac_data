@@ -272,7 +272,30 @@ def procesamiento_datos_sioma_corte():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
     df = df.dropna(subset=['Lote'])
+    df = df.rename(columns={'Tipo de labor': 'Color'})
     df = df[df['Finca'] != '']
+    color = pd.read_csv('data/colores_semana_embolse.csv')
+    df['Codigo Color'] = df['Color'].map(dict(zip(color['Color'], color['Codigo Color'])))
+    return df
+
+@st.cache_data(ttl='12h')
+def procesamiento_datos_sioma_repique():
+    df = pd.read_excel(r'data/Sioma/repique.xlsx')
+    # Agregamos la columna de Año y Semana
+    df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S')
+    df['Año'] = df['Fecha'].dt.year
+    df['Semana'] = df['Fecha'].dt.isocalendar().week
+    df['Finca'] = ''
+    # Usando la informacion del diccionario fincas, si un lote dentro del dataframe esta en uno de los values de finca, colocar la key en la columna finca
+    for index, row in df.iterrows():
+        for key, value in fincas.items():
+            if row['Lote'] in value:
+                df.at[index, 'Finca'] = key
+    df = df.dropna(subset=['Lote'])
+    df = df.rename(columns={'Tipo de labor': 'Color'})
+    df = df[df['Finca'] != '']
+    color = pd.read_csv('data/colores_semana_embolse.csv')
+    df['Codigo Color'] = df['Color'].map(dict(zip(color['Color'], color['Codigo Color'])))
     return df
 
 @st.cache_data(ttl='12h')
@@ -470,7 +493,7 @@ def run():
             data = data[data['Finca'] == finca_seleccionada_cxh]
             fig = px.bar(data, x=data["Semana"], y=data['Cajas por Hectarea'],
                           title='Cajas por Hectarea', color='Cajas por Hectarea',
-                          color_continuous_scale=px.colors.sequential.Jet_r,
+                          color_continuous_scale=px.colors.sequential.Bluered_r,
                           labels={'x': 'Semana', 'y': 'Cajas por hectarea'},
                           text_auto=True)
             fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Cajas por Hectarea: %{y}<br><extra></extra>')
@@ -503,7 +526,7 @@ def run():
             temp = temp[temp['Finca'] == finca_seleccionada_bxh]
             fig = px.bar(temp, x="Semana", y='Bacotas por Hectarea',
                           title='Bacotas por Hectarea', color='Bacotas por Hectarea',
-                          color_continuous_scale=px.colors.sequential.Jet_r,
+                          color_continuous_scale=px.colors.sequential.Bluered_r,
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'},
                           text_auto=True,
                           )
@@ -526,13 +549,13 @@ def run():
                          text_auto=True)
             fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Ratio: %{y:.2f}<br><extra></extra>')
             fig.update_xaxes(range=[0.5, data_embarque['Semana'].max() + 1], dtick=1)
-            fig.update_yaxes(range=[0, data_embarque['Ratio'].max() + (data_embarque['Ratio'].max()/6)])
+            fig.update_yaxes(range=[0, data_embarque['Ratio'].max() + 2])
             fig.update_layout(xaxis_title='Semana', yaxis_title='Ratio')
             # Agregamos una linea horizontal para un ratio de 4, debe tener un texto que diga "Ratio maximo"
             fig.add_hline(y=2, line_dash="dash", line_color="red", annotation_text="Ratio meta", annotation_position="top right", col="all")
             # Agregamos un texto que diga el significado del ratio en la parte superior derecha
-            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+1, text="Ratio = Total Racimos / Cajas", showarrow=False, xshift=10, yshift=10)
-            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+0.5, text="Entre mas bajo, mejor", showarrow=False, xshift=10, yshift=10)
+            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+2, text="Ratio = Total Racimos / Cajas", showarrow=False, xshift=10, yshift=10)
+            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+1, text="Entre mas bajo, mejor", showarrow=False, xshift=10, yshift=10)
             st.plotly_chart(fig, use_container_width=True)
 
         with ratio_de_produccion_inverso.container():
@@ -549,13 +572,13 @@ def run():
                          text_auto=True)
             fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Semana: %{x}<br>Ratio: %{y:.2f}<br><extra></extra>')
             fig.update_xaxes(range=[0.5, data_embarque['Semana'].max() + 0.5], dtick=1)
-            fig.update_yaxes(range=[0, data_embarque['Ratio'].max() + (data_embarque['Ratio'].max()/6)])
+            fig.update_yaxes(range=[0,1])
             fig.update_layout(xaxis_title='Semana', yaxis_title='Ratio')
             # Agregamos una linea horizontal para un ratio de 4, debe tener un texto que diga "Ratio maximo"
             fig.add_hline(y=0.45, line_dash="dash", line_color="red", annotation_text="Ratio Minimo", annotation_position="top right", col="all")
             # Agregamos un texto que diga el significado del ratio en la parte superior derecha
-            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+0.1, text="Ratio = Cajas / Total Racimos", showarrow=False, xshift=1, yshift=1)
-            fig.add_annotation(x=data_embarque['Semana'].max(), y=data_embarque['Ratio'].max()+0.1, text="Entre mas alto, mejor", showarrow=False, xshift=1, yshift=1)
+            fig.add_annotation(x=data_embarque['Semana'].max(), y=1, text="Ratio = Cajas / Total Racimos", showarrow=False, xshift=1, yshift=1)
+            fig.add_annotation(x=data_embarque['Semana'].max(), y=0.95, text="Entre mas alto, mejor", showarrow=False, xshift=1, yshift=1)
             st.plotly_chart(fig, use_container_width=True)
 
         with bacota_lote_por_hectarea.container():
@@ -585,7 +608,7 @@ def run():
             try:
                 fig = px.bar(temp, x="Lote", y='Bacotas por Hectarea',
                           title='Bacotas por Hectarea', color='Bacotas por Hectarea',
-                          color_continuous_scale=px.colors.sequential.Jet_r,
+                          color_continuous_scale=px.colors.sequential.Bluered_r,
                           labels={'x': 'Semana', 'y': 'Bacotas por hectarea'},
                           text_auto=True)
                 fig.update_traces(texttemplate='%{y:.2f}', textposition='inside', hovertemplate='Lote: %{x}<br>Bacotas por Hectarea: %{y}<br><extra></extra>')
@@ -619,7 +642,7 @@ def run():
             else:
                 fig = px.bar(temp, x="Lote", y='Cantidad',
                               title='Cantidad de Bacotas por Lote', color='Cantidad',
-                              color_continuous_scale=px.colors.sequential.Jet_r,
+                              color_continuous_scale=px.colors.sequential.Bluered_r,
                               labels={'x': 'Semana', 'y': 'Cantidad de Bacotas'},
                               text_auto=True
                               )
@@ -645,7 +668,7 @@ def run():
             temp = temp[temp['Cantidad'] != 0]
             fig = px.bar(temp, x="Semana", y='Cantidad',
                             title='Cantidad de Bacotas por Finca', color='Cantidad',
-                            color_continuous_scale=px.colors.sequential.Jet_r,
+                            color_continuous_scale=px.colors.sequential.Bluered_r,
                             labels={'x': 'Semana', 'y': 'Cantidad de Bacotas'},
                             text_auto=True
                             )
@@ -669,7 +692,7 @@ def run():
             data = data[data['Finca'] == finca_seleccionada_cajas]
             fig = px.bar(data, x=data["Semana"], y=data['Cajas'],
                           title='Cajas por Finca', color='Cajas',
-                          color_continuous_scale=px.colors.sequential.Jet_r,
+                          color_continuous_scale=px.colors.sequential.Bluered_r,
                           labels={'x': 'Semana', 'y': 'Cajas'},
                           text_auto=True)
             fig.update_traces(texttemplate='%{y}', textposition='inside', hovertemplate='Semana: %{x}<br>Cajas: %{y}<br><extra></extra>')
@@ -678,7 +701,7 @@ def run():
             st.plotly_chart(fig, use_container_width=True)
 
     elif pagina == 'Graficos Semanales':
-        embolse, desflore, amarre, deshoje, embolse_finca, coco = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje", "Embolse por finca", "Coco"])
+        embolse, desflore, amarre, deshoje, embolse_finca, coco, inventario = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje", "Embolse por finca", "Coco", "Inventario de Racimos"])
         with embolse:
             st.subheader("Filtros para las graficas")
             data_embolse = procesamiento_datos_sioma_embolse()
@@ -772,7 +795,7 @@ def run():
             finca_seleccionada_coco = st.radio("Seleccionar finca", data_coco['Finca'].unique(), key='664715')
             data_coco = data_coco[data_coco['Finca'] == finca_seleccionada_coco]
             mapa, pie = st.columns(2)
-            fig = px.scatter_mapbox(data_coco, lat='lat', lon='lng', zoom=16, mapbox_style='open-street-map', color_discrete_sequence=['lime'], hover_name='Finca', hover_data=['Fecha', 'Semana', 'Tipo de labor'], title='Control fitosanitario', labels={'lat': 'Latitud', 'lng': 'Longitud'})
+            fig = px.scatter_mapbox(data_coco, lat='lat', lon='lng', zoom=16, mapbox_style='carto-darkmatter', color_discrete_sequence=['lime'], hover_name='Finca', hover_data=['Fecha', 'Semana'], title='Control fitosanitario', labels={'lat': 'Latitud', 'lng': 'Longitud'})
             fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
             fig.update_layout(mapbox_bounds={'north': 8.9203, 'south': 8.8, 'east': -76.1325, 'west': -76.7793})
             mapa.plotly_chart(fig, use_container_width=True)
@@ -781,6 +804,61 @@ def run():
             temp = temp.melt(id_vars='Semana', var_name='Finca', value_name='Cantidad')
             temp = temp[temp['Cantidad'] != 0]
             pie.plotly_chart(px.pie(temp, values='Cantidad', names='Finca', title='Control fitosanitario por finca', color='Cantidad'), use_container_width=True)
+
+        with inventario:
+            data_embolse_inventario = procesamiento_datos_sioma_embolse()
+            data_corte_inventario = procesamiento_datos_sioma_corte()
+            data_repique_inventario = procesamiento_datos_sioma_repique()
+            st.subheader("Filtros para las graficas")
+            anio = data_embolse_inventario['Año'].unique().max()
+            # Fecha por semana
+            data_embolse_inventario = data_embolse_inventario[data_embolse_inventario['Año'] == anio]
+            data_corte_inventario = data_corte_inventario[data_corte_inventario['Año'] == anio]
+            data_repique_inventario = data_repique_inventario[data_repique_inventario['Año'] == anio]
+            semana_inventario = st.selectbox("Seleccionar semana", np.sort(data_embolse_inventario['Semana'].unique()), key='5615')
+            temp_embolse = data_embolse_inventario.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
+            temp_embolse = temp_embolse.reset_index()
+            temp_embolse = temp_embolse.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
+            temp_embolse = temp_embolse[temp_embolse['Cantidad'] != 0]
+            temp = temp_embolse.groupby(by='Semana').sum(numeric_only=True)
+            temp = temp.reset_index()
+            
+            st.dataframe(temp)
+            
+            temp_embolse.reset_index(drop=True, inplace=True)
+            temp_corte = data_corte_inventario.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
+            temp_corte = temp_corte.reset_index()
+            temp_corte = temp_corte.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
+            temp_corte = temp_corte[temp_corte['Cantidad'] != 0]
+            temp_corte.reset_index(drop=True, inplace=True)
+            temp_repique = data_repique_inventario.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
+            temp_repique = temp_repique.reset_index()
+            temp_repique = temp_repique.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
+            temp_repique = temp_repique[temp_repique['Cantidad'] != 0]
+            temp_repique.reset_index(drop=True, inplace=True)
+            st.dataframe(temp_embolse)
+            # El inventario se calcula los racimos de embolse - los racimos de corte - los racimos de repique
+            temp_inventario = temp_embolse.copy()
+            temp_inventario = temp_inventario[temp_inventario['Cantidad'] != 0]
+            temp_inventario.reset_index(drop=True, inplace=True)
+            fig = go.Figure(data=[go.Bar(
+                x=temp_inventario['Semana'],
+                y=temp_inventario['Cantidad'],
+                marker=dict(color=data_embolse_inventario[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp_inventario['Color']]['Codigo Color'].values),
+                hovertemplate='Semana: %{x}<br>Racimos disponibles: %{y}<br><extra></extra>',
+                texttemplate='%{y}', textposition='inside'
+                ),
+                go.Bar(
+                    x=temp['Semana'],
+                    y=temp['Cantidad'],
+                    marker=dict(color='black'),
+                    hovertemplate='Semana: %{x}<br>Racimos totales: %{y}<br><extra></extra>',
+                    texttemplate='%{y}', textposition='inside'
+                )
+            ])
+            fig.update_xaxes(dtick=1)
+            fig.update_layout(title='Inventario de Racimos', xaxis_title='Semana', yaxis_title='Cantidad')
+            st.plotly_chart(fig, use_container_width=True)
             
     elif pagina == 'Tareas Periodicas':
         st.write("Tareas Periodicas")
@@ -821,7 +899,7 @@ def run():
             temp.reset_index(drop=True, inplace=True)
             try:
                 fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de maleza',
-                              hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet_r, text='Porcentaje')
+                              hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Bluered_r, text='Porcentaje')
                 fig.update_xaxes(tickmode='linear')
                 fig.update_traces(hovertemplate='Semana: %{x}<br>%{y}%<br><extra></extra>', texttemplate='%{y:.2f}%', textposition='inside')
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
@@ -851,7 +929,7 @@ def run():
                         temp.at[index, 'Porcentaje'] = (row['Unidades Primer Lote'] / row2['Tamaño Area Neta']) * 100
             temp.reset_index(drop=True, inplace=True)
             try:
-                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Desmache', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet_r)
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Desmache', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Bluered_r)
                 fig.update_xaxes(dtick=1)
                 fig.update_traces(hovertemplate='Semana: %{x}<br>%{y}%<br><extra></extra>', texttemplate='%{y:.2f}%', textposition='inside')
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')
@@ -878,7 +956,7 @@ def run():
                 st.warning("No hay datos en el lote seleccionado", icon='⚠️')
             else:
                 try:
-                    fig = px.bar(temp, x='Semana', y='Cantidad', title='Resiembra', hover_data=['Semana', 'Cantidad'], color='Cantidad',color_continuous_scale=px.colors.sequential.Jet_r)
+                    fig = px.bar(temp, x='Semana', y='Cantidad', title='Resiembra', hover_data=['Semana', 'Cantidad'], color='Cantidad',color_continuous_scale=px.colors.sequential.Bluered_r)
                     fig.update_traces(hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br><extra></extra>', texttemplate='%{y}', textposition='inside')
                     fig.update_xaxes(dtick=1)
                     # rango de y
@@ -921,7 +999,7 @@ def run():
             temp = temp.groupby(['Año', 'Semana', 'Labores']).sum(numeric_only=True).reset_index()
             temp.reset_index(drop=True, inplace=True)
             try:
-                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de sigatoka', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Jet_r)
+                fig = px.bar(temp, x='Semana', y='Porcentaje', title='Control de sigatoka', hover_data=['Semana', 'Porcentaje'], range_y=[0, 100], color='Porcentaje',color_continuous_scale=px.colors.sequential.Bluered_r)
                 fig.update_xaxes(dtick=1)
                 fig.update_traces(hovertemplate='Semana: %{x}<br>%{y}%<br><extra></extra>', texttemplate='%{y:.2f}%', textposition='inside')
                 fig.update_layout(xaxis_title='Semana', yaxis_title='Porcentaje')

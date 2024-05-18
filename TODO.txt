@@ -13,7 +13,7 @@ TODO: Implementar cálculos para los siguientes elementos:
 - [x] Desflore (Grafico de Producción)
 - [] Amarre (Grafico parcialmente implementado, a espera de datos de Sioma)
 - [] Deshoje (Grafico parcialmente implementado, a espera de datos de Sioma)
-- [] Coco
+- [x] Coco (Localizacion de las palmas, Contar los cocos)
 ## Periodicas
 - [x] Control Maleza
 - [x] Desmache

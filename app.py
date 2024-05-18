@@ -312,7 +312,6 @@ def procesamiento_datos_sioma_resiembra():
     df = df[df['Finca'] != '']
     return df
 
-@st.cache_data(ttl='12h')
 def procesamiento_datos_sioma_coco():
     df = pd.read_excel(r'data/Sioma/coco.xlsx')
     # Agregamos la columna de Año y Semana
@@ -770,11 +769,18 @@ def run():
         with coco:
             data_coco = procesamiento_datos_sioma_coco()
             data_coco = data_coco[data_coco['Tipo de labor'] == 'Control fitosanitario']
-            #st.dataframe(data_coco)
-            fig = px.scatter_mapbox(data_coco, lat='lat', lon='lng', zoom=13, mapbox_style='carto-positron', color_discrete_sequence=['lime'])
-            fig.update_traces(hovertemplate='Palma en: %{lat}, %{lon}<extra></extra>')
+            finca_seleccionada_coco = st.radio("Seleccionar finca", data_coco['Finca'].unique(), key='664715')
+            data_coco = data_coco[data_coco['Finca'] == finca_seleccionada_coco]
+            mapa, pie = st.columns(2)
+            fig = px.scatter_mapbox(data_coco, lat='lat', lon='lng', zoom=16, mapbox_style='open-street-map', color_discrete_sequence=['lime'], hover_name='Finca', hover_data=['Fecha', 'Semana', 'Tipo de labor'], title='Control fitosanitario', labels={'lat': 'Latitud', 'lng': 'Longitud'})
             fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-            st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(mapbox_bounds={'north': 8.9203, 'south': 8.8, 'east': -76.1325, 'west': -76.7793})
+            mapa.plotly_chart(fig, use_container_width=True)
+            temp = data_coco.groupby(by='Semana')['Finca'].value_counts().unstack().fillna(0)
+            temp = temp.reset_index()
+            temp = temp.melt(id_vars='Semana', var_name='Finca', value_name='Cantidad')
+            temp = temp[temp['Cantidad'] != 0]
+            pie.plotly_chart(px.pie(temp, values='Cantidad', names='Finca', title='Control fitosanitario por finca', color='Cantidad'), use_container_width=True)
             
     elif pagina == 'Tareas Periodicas':
         st.write("Tareas Periodicas")

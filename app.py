@@ -8,6 +8,7 @@ import os
 import dropbox
 import dropbox.files
 import dropbox.oauth
+import asyncio
 
 KEY = st.secrets["DROPBOX_KEY"]
 SECRET = st.secrets["DROPBOX_SECRET"]
@@ -53,7 +54,7 @@ def dropbox_oauth():
     authorize_url = flow.start()
     st.write("Ir a la siguiente URL para autorizar la aplicación:")
     st.link_button("Ir a la página de autorización", authorize_url)
-    auth_code = st.text_input("Ingrese el código de autorización aquí: ", key='5221154').strip()
+    auth_code = st.text_input("Ingrese el código de autorización aquí: ", key='5221154', type="password").strip()
     try:
         oauth_result = flow.finish(auth_code)
     except Exception as e:
@@ -67,7 +68,7 @@ def change_token_secrets():
     # Modificamos el archivo de secretos, es un TOML, leerlo y modificar la linea que contiene el token
     while new_secret == "":
         try:
-            new_secret = st.text_input("Ingrese el nuevo token secreto: ").strip()
+            new_secret = st.text_input("Ingrese el nuevo token secreto: ", type="password").strip()
         except Exception as e:
             pass
     with open(".streamlit/secrets.toml", "r") as f:
@@ -187,7 +188,6 @@ def procesamiento_datos_sioma_embolse():
         for key, value in fincas.items():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
-    df = df.dropna(subset=['Lote'])
     df = df.rename(columns={'Tipo de labor': 'Color'})
     df = df[df['Finca'] != '']
     color = pd.read_csv('data/colores_semana_embolse.csv')
@@ -271,7 +271,6 @@ def procesamiento_datos_sioma_corte():
         for key, value in fincas.items():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
-    df = df.dropna(subset=['Lote'])
     df = df.rename(columns={'Tipo de labor': 'Color'})
     df = df[df['Finca'] != '']
     color = pd.read_csv('data/colores_semana_embolse.csv')
@@ -291,7 +290,6 @@ def procesamiento_datos_sioma_repique():
         for key, value in fincas.items():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
-    df = df.dropna(subset=['Lote'])
     df = df.rename(columns={'Tipo de labor': 'Color'})
     df = df[df['Finca'] != '']
     color = pd.read_csv('data/colores_semana_embolse.csv')
@@ -311,7 +309,6 @@ def procesamiento_datos_sioma_desflore():
         for key, value in fincas.items():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
-    df = df.dropna(subset=['Lote'])
     df = df.rename(columns={'Tipo de labor': 'Color'})
     df = df[df['Finca'] != '']
     color = pd.read_csv('data/colores_semana_desflore.csv')
@@ -331,7 +328,6 @@ def procesamiento_datos_sioma_resiembra():
         for key, value in fincas.items():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
-    df = df.dropna(subset=['Lote'])
     df = df[df['Finca'] != '']
     return df
 
@@ -347,7 +343,6 @@ def procesamiento_datos_sioma_coco():
         for key, value in fincas.items():
             if row['Lote'] in value:
                 df.at[index, 'Finca'] = key
-    df = df.dropna(subset=['Lote'])
     df = df[df['Finca'] != '']
     return df
 
@@ -431,7 +426,7 @@ def procesamiento_datos_rdt():
     df['Labores'] = df['Labores'].str.title()
     return df
     
-def run():
+async def run():
     st.sidebar.title("Menu")
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
@@ -450,7 +445,8 @@ def run():
             except dropbox.exceptions.AuthError as e:
                 print("Error: %s" % (e,))
                 dropbox_oauth()
-                change_token_secrets()
+                await asyncio.run(change_token_secrets())
+                #change_token_secrets()
                 dbx = dropbox.Dropbox(TOKEN)
                 with st.spinner("Descargando archivos de Dropbox"):
                     dbx = dropbox.Dropbox(TOKEN)
@@ -484,7 +480,7 @@ def run():
             year_caja = data['Año'].unique()
             finca, anio = st.columns(2)
             with finca:
-                finca_seleccionada_cxh = st.radio("Seleccionar finca", finca_caja)
+                finca_seleccionada_cxh = st.radio("Seleccionar finca", finca_caja, index=finca_caja.size-2)
             with anio:
                 anio_seleccionado_cxh = st.radio("Filtrar por año", year_caja, index=year_caja.size-1)
             # Filtrar por año
@@ -701,7 +697,7 @@ def run():
             st.plotly_chart(fig, use_container_width=True)
 
     elif pagina == 'Graficos Semanales':
-        embolse, desflore, amarre, deshoje, embolse_finca, coco, inventario = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje", "Embolse por finca", "Coco", "Inventario de Racimos"])
+        embolse, desflore, amarre, deshoje, embolse_finca, corte_finca, coco, inventario = st.tabs(["Embolse", "Desflore", "Amarre", "Deshoje", "Embolse por finca", "Corte por finca", "Coco", "Inventario de Racimos"])
         with embolse:
             st.subheader("Filtros para las graficas")
             data_embolse = procesamiento_datos_sioma_embolse()
@@ -789,6 +785,30 @@ def run():
             fig.update_xaxes(dtick=1)
             st.plotly_chart(fig, use_container_width=True)
 
+        with corte_finca:
+            data_corte = procesamiento_datos_sioma_corte()
+            st.subheader("Filtros para las graficas")
+            finca, anio = st.columns(2)
+            with finca:
+                finca_seleccionada_corte = st.radio("Seleccionar finca", data_corte['Finca'].unique(), key='17140469')
+            with anio:
+                anio_seleccionado_corte = st.radio("Filtrar por año", data_corte['Año'].unique(), key='14060512', index=data_corte['Año'].unique().size-1)
+            data_corte = data_corte[(data_corte['Finca'] == finca_seleccionada_corte) & (data_corte['Año'] == anio_seleccionado_corte)]
+            temp = data_corte.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
+            temp = temp.reset_index()
+            temp = temp.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
+            temp = temp[temp['Cantidad'] != 0]
+            fig = go.Figure(data=[go.Bar(
+                x=temp['Semana'],
+                y=temp['Cantidad'],
+                marker=dict(color=data_corte[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp['Color']]['Codigo Color'].values),
+                hovertemplate='Semana: %{x}<br>Cantidad: %{y}<br><extra></extra>',
+                texttemplate='%{y}', textposition='inside'
+                )]
+            )
+            fig.update_xaxes(dtick=1)
+            st.plotly_chart(fig, use_container_width=True)
+
         with coco:
             data_coco = procesamiento_datos_sioma_coco()
             data_coco = data_coco[data_coco['Tipo de labor'] == 'Control fitosanitario']
@@ -811,51 +831,80 @@ def run():
             data_repique_inventario = procesamiento_datos_sioma_repique()
             st.subheader("Filtros para las graficas")
             anio = data_embolse_inventario['Año'].unique().max()
+            finca = st.radio("Seleccionar finca", data_embolse_inventario['Finca'].unique())
+            data_embolse_inventario = data_embolse_inventario[data_embolse_inventario['Finca'] == finca]
+            data_corte_inventario = data_corte_inventario[data_corte_inventario['Finca'] == finca]
+            data_repique_inventario = data_repique_inventario[data_repique_inventario['Finca'] == finca]
             # Fecha por semana
             data_embolse_inventario = data_embolse_inventario[data_embolse_inventario['Año'] == anio]
             data_corte_inventario = data_corte_inventario[data_corte_inventario['Año'] == anio]
             data_repique_inventario = data_repique_inventario[data_repique_inventario['Año'] == anio]
-            semana_inventario = st.selectbox("Seleccionar semana", np.sort(data_embolse_inventario['Semana'].unique()), key='5615')
+            # El inventario se calcula en base a 15 semanas, siendo la semana actual la semana 0 y las 14 semanas anteriores
+            semana_actual = pd.to_datetime('today').isocalendar()[1]
+            semanas = np.arange(semana_actual-14, semana_actual+1)
+            # Filtrar por semana
+            data_embolse_inventario = data_embolse_inventario[data_embolse_inventario['Semana'].isin(semanas)]
+            data_corte_inventario = data_corte_inventario[data_corte_inventario['Semana'].isin(semanas)]
+            data_repique_inventario = data_repique_inventario[data_repique_inventario['Semana'].isin(semanas)]
+            # Como ya tenemos nuestro rango de semanas, ahora colocaremos la semana actual en la primera posicion del dataframe
+            # Siendo la semana 0 y las 14 semanas anteriores aumentando en 1
+            data_embolse_inventario['Semana'] = data_embolse_inventario['Semana'].apply(lambda x: semana_actual - x)
+            data_corte_inventario['Semana'] = data_corte_inventario['Semana'].apply(lambda x: semana_actual - x)
+            data_repique_inventario['Semana'] = data_repique_inventario['Semana'].apply(lambda x: semana_actual - x)
+            # Agrupar por semana y sumar la cantidad de racimos
             temp_embolse = data_embolse_inventario.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
             temp_embolse = temp_embolse.reset_index()
             temp_embolse = temp_embolse.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
             temp_embolse = temp_embolse[temp_embolse['Cantidad'] != 0]
-            temp = temp_embolse.groupby(by='Semana').sum(numeric_only=True)
-            temp = temp.reset_index()
-            
-            st.dataframe(temp)
-            
-            temp_embolse.reset_index(drop=True, inplace=True)
             temp_corte = data_corte_inventario.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
             temp_corte = temp_corte.reset_index()
             temp_corte = temp_corte.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
             temp_corte = temp_corte[temp_corte['Cantidad'] != 0]
-            temp_corte.reset_index(drop=True, inplace=True)
             temp_repique = data_repique_inventario.groupby(by='Semana')['Color'].value_counts().unstack().fillna(0)
             temp_repique = temp_repique.reset_index()
             temp_repique = temp_repique.melt(id_vars='Semana', var_name='Color', value_name='Cantidad')
             temp_repique = temp_repique[temp_repique['Cantidad'] != 0]
-            temp_repique.reset_index(drop=True, inplace=True)
-            st.dataframe(temp_embolse)
-            # El inventario se calcula los racimos de embolse - los racimos de corte - los racimos de repique
+            st.write("La semana actual es la semana ", semana_actual)
+            # Hacemos la operacion de resta para obtener el inventario
+            # Inventario = Embolse - Corte - Repique
+            # Pero toca tener en cuenta los colores de embolse, estos estan a veces una semana antes o despues
+            # de la semana actual, por lo que se debe hacer un ajuste basandose en los colores de corte y repique
             temp_inventario = temp_embolse.copy()
             temp_inventario = temp_inventario[temp_inventario['Cantidad'] != 0]
-            temp_inventario.reset_index(drop=True, inplace=True)
+            for index, row in temp_inventario.iterrows():
+                for index2, row2 in temp_corte.iterrows():
+                    for index3, row3 in temp_repique.iterrows():
+                        if row['Semana'] == row2['Semana'] and row['Color'] == row2['Color']:
+                            temp_inventario.at[index, 'Cantidad'] = row['Cantidad'] - row2['Cantidad']
+                        if row['Semana'] == row3['Semana'] and row['Color'] == row3['Color']:
+                            temp_inventario.at[index, 'Cantidad'] = row['Cantidad'] - row3['Cantidad']
             fig = go.Figure(data=[go.Bar(
                 x=temp_inventario['Semana'],
                 y=temp_inventario['Cantidad'],
                 marker=dict(color=data_embolse_inventario[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp_inventario['Color']]['Codigo Color'].values),
-                hovertemplate='Semana: %{x}<br>Racimos disponibles: %{y}<br><extra></extra>',
-                texttemplate='%{y}', textposition='inside'
+                hovertemplate='Semana: %{x}<br>Cantidad en inventario: %{y}<br><extra></extra>',
+                texttemplate='%{y}', textposition='inside',
+                name='Inventario'
+                ),
+                # Agregamos en el hover la informacion de los cortes y repiques
+                go.Bar(
+                    x=temp_corte['Semana'],
+                    y=temp_corte['Cantidad'],
+                    marker=dict(color=data_corte_inventario[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp_corte['Color']]['Codigo Color'].values),
+                    hovertemplate='Semana: %{x}<br>Cantidad cortados: %{y}<br><extra></extra>',
+                    texttemplate='%{y}', textposition='inside',
+                    name='Corte'
                 ),
                 go.Bar(
-                    x=temp['Semana'],
-                    y=temp['Cantidad'],
-                    marker=dict(color='black'),
-                    hovertemplate='Semana: %{x}<br>Racimos totales: %{y}<br><extra></extra>',
-                    texttemplate='%{y}', textposition='inside'
+                    x=temp_repique['Semana'],
+                    y=temp_repique['Cantidad'],
+                    marker=dict(color=data_repique_inventario[['Codigo Color', 'Color']].drop_duplicates().set_index('Color').loc[temp_repique['Color']]['Codigo Color'].values),
+                    hovertemplate='Semana: %{x}<br>Cantidad repicados: %{y}<br><extra></extra>',
+                    texttemplate='%{y}', textposition='inside',
+                    name='Repique'
                 )
-            ])
+                ]
+            )
             fig.update_xaxes(dtick=1)
             fig.update_layout(title='Inventario de Racimos', xaxis_title='Semana', yaxis_title='Cantidad')
             st.plotly_chart(fig, use_container_width=True)
@@ -1017,4 +1066,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    asyncio.run(run())

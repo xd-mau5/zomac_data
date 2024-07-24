@@ -1,13 +1,9 @@
-import dropbox.exceptions
 import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
-import dropbox
-import dropbox.files
-import dropbox.oauth
 import asyncio
 
 KEY = st.secrets["DROPBOX_KEY"]
@@ -44,8 +40,7 @@ fincas = {
 #st.write("# Analisis de datos de Tropical Food Export SAS")
 st.title("Analisis de datos de Tropical Food Export SAS")
 
-paginas = ['Autenticacion en Dropbox',
-           'Graficos de Produccion',
+paginas = ['Graficos de Produccion',
            'Graficos Semanales',
            'Tareas Periodicas']
 
@@ -103,13 +98,14 @@ def search_excel_embarque(dbx: dropbox.Dropbox, folder: str, remote_folder: str)
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque():
     # Listar los archivos en la carpeta 'data/Dropbox'
-    archivos = os.listdir('data/Dropbox')
+    # Se cambia para que sea de manera local debido a ciertos cambios
+    archivos = os.listdir(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox')
     # Buscar el archivo de EMBARQUE
     for archivo in archivos:
         if "EMBARQUE" in archivo:
             embarque = archivo
     sheet = 'CALCULO PAGO'
-    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
+    df = pd.read_excel(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox' + embarque, sheet_name=sheet)
     df = df.iloc[6:, 2:]
     df.columns = df.iloc[0]
     df = df.iloc[1:]
@@ -147,13 +143,13 @@ def procesamiento_datos_embarque():
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque_cajas():
     # Listar los archivos en la carpeta 'data/Dropbox'
-    archivos = os.listdir('data/Dropbox')
+    archivos = os.listdir(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox')
     # Buscar el archivo de EMBARQUE
     for archivo in archivos:
         if "EMBARQUE" in archivo and not archivo.startswith('~$'):
             embarque = archivo
     sheet = 'CALCULO PAGO'
-    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
+    df = pd.read_excel(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox' + embarque, sheet_name=sheet)
     df = df.iloc[6:, 2:]
     df.columns = df.iloc[0]
     df = df.iloc[1:]
@@ -197,13 +193,13 @@ def procesamiento_datos_sioma_embolse():
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque_ratio():
     # Listar los archivos en la carpeta 'data/Dropbox'
-    archivos = os.listdir('data/Dropbox')
+    archivos = os.listdir(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox')
     # Buscar el archivo de EMBARQUE
     for archivo in archivos:
         if "EMBARQUE" in archivo and not archivo.startswith('~$'):
             embarque = archivo
     sheet = 'CALCULO PAGO'
-    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
+    df = pd.read_excel(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox' + embarque, sheet_name=sheet)
     df = df.iloc[6:, 2:]
     df.columns = df.iloc[0]
     df = df.iloc[1:]
@@ -229,13 +225,13 @@ def procesamiento_datos_embarque_ratio():
 @st.cache_data(ttl='12h')
 def procesamiento_datos_embarque_ratio_inverso():
     # Listar los archivos en la carpeta 'data/Dropbox'
-    archivos = os.listdir('data/Dropbox')
+    archivos = os.listdir(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox')
     # Buscar el archivo de EMBARQUE
     for archivo in archivos:
         if "EMBARQUE" in archivo and not archivo.startswith('~$'):
             embarque = archivo
     sheet = 'CALCULO PAGO'
-    df = pd.read_excel(r'data/Dropbox/' + embarque, sheet_name=sheet)
+    df = pd.read_excel(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Embarque Dropbox' + embarque, sheet_name=sheet)
     df = df.iloc[6:, 2:]
     df.columns = df.iloc[0]
     df = df.iloc[1:]
@@ -349,13 +345,13 @@ def procesamiento_datos_sioma_coco():
 @st.cache_data(ttl='12h')
 def procesamiento_datos_rdt():
     # Listar los archivos en la carpeta 'data/Dropbox'
-    archivos = os.listdir('data/Dropbox')
+    archivos = os.listdir(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Nomina Dopbox\RDT 2023')
     # Buscar el archivo de RDT
     for archivo in archivos:
         if archivo.startswith('RDT'):
             rdt = archivo
     # Leer el archivo de RDT
-    df = pd.read_excel(r'data/Dropbox/' + rdt, sheet_name='RDT')
+    df = pd.read_excel(r'C:\Users\Pedrito\Dropbox\TROPICAL  2023 OFICINA\Nomina Dopbox\RDT 2023' + rdt, sheet_name='RDT')
     # Eliminamos las primeras 13 filas y la primera columna
     df = df.iloc[13:, 1:]
     # Colocamos la primera fila como titulos de las columnas
@@ -430,39 +426,7 @@ async def run():
     st.sidebar.title("Menu")
     pagina = st.sidebar.radio("Seleccionar pagina", paginas)
 
-    if pagina == 'Autenticacion en Dropbox':
-            try:
-                dbx = dropbox.Dropbox(TOKEN)
-                with st.spinner("Descargando archivos de Dropbox"):
-                    dbx = dropbox.Dropbox(TOKEN)
-                    # Buscar el archivo de RDT 
-                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                    st.success("RDT descargado")
-                    # Buscar el archivo de EMBARQUE
-                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-                    st.success("Embarque descargado")
-                    st.success("Archivos descargados con exito")
-            except dropbox.exceptions.AuthError as e:
-                print("Error: %s" % (e,))
-                dropbox_oauth()
-                await asyncio.run(change_token_secrets())
-                #change_token_secrets()
-                dbx = dropbox.Dropbox(TOKEN)
-                with st.spinner("Descargando archivos de Dropbox"):
-                    dbx = dropbox.Dropbox(TOKEN)
-                    # Buscar el archivo de RDT 
-                    search_excel_rdt(dbx, folder_data_dropbox, '/TROPICAL  2022/Nomina Dopbox/RDT 2023')
-                    st.success("RDT descargado")
-                    # Buscar el archivo de EMBARQUE
-                    search_excel_embarque(dbx, folder_data_dropbox, '/TROPICAL  2022/Embarque Dropbox')
-                    st.success("Embarque descargado")
-                    st.success("Archivos descargados con exito")
-                st.success("Autenticación exitosa")
-            except dropbox.exceptions.HttpError as e:
-                print("Error: %s" % (e,))
-            
-
-    elif pagina == 'Graficos de Produccion':
+    if pagina == 'Graficos de Produccion':
         caja_por_hectarea, bacota_por_hectarea, ratio_de_produccion, ratio_de_produccion_inverso, bacota_lote_por_hectarea, bacota_lote, bacota_finca, cajas_finca = st.tabs(
             ["Caja por hectarea",
              "Bacota por hectarea",
